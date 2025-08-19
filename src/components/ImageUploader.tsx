@@ -63,13 +63,13 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImagesProcessed 
       ));
 
       try {
-        // Enviar imagen al backend para procesamiento con GPT-4 Vision
-        const formData = new FormData();
-        formData.append('image', image.file);
+        // Convertir archivo a base64 y enviar a Netlify Function
+        const base64 = await fileToBase64(image.file);
 
-        const response = await fetch('http://localhost:5005/api/process-invoice', {
+        const response = await fetch('/api/process-invoice', {
           method: 'POST',
-          body: formData,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ imageBase64: base64, mimeType: image.file.type }),
         });
 
         if (!response.ok) {
@@ -113,6 +113,20 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImagesProcessed 
       setProcessProgress(0);
       setCurrentProcessingImage('');
     }, 500);
+  };
+
+  // Helper: archivo a base64 (sin prefijo data:)
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        const b64 = result.split(',')[1] || result; // manejar dataURL o binario
+        resolve(b64);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
   };
 
 
