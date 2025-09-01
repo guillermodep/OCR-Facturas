@@ -1,6 +1,5 @@
 const express = require('express');
 const cors = require('cors');
-const multer = require('multer');
 const { AzureOpenAI } = require('openai');
 require('dotenv').config();
 
@@ -17,26 +16,22 @@ const openAIClient = new AzureOpenAI({
 
 // Middleware
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-// Configuración de multer para manejar archivos
-const upload = multer({ 
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 } // 10MB límite
-});
 
 // Endpoint para procesar facturas con GPT-4 Vision
-app.post('/api/process-invoice', upload.single('image'), async (req, res) => {
+app.post('/api/process-invoice', async (req, res) => {
   try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No se proporcionó imagen' });
+    const { imageBase64, mimeType } = req.body;
+
+    if (!imageBase64 || !mimeType) {
+      return res.status(400).json({ error: 'Falta la imagen en formato base64 o el tipo MIME' });
     }
 
-    console.log('Procesando imagen con GPT-4 Vision:', req.file.originalname);
+    console.log('Procesando imagen con GPT-4 Vision...');
 
-    // Convertir imagen a base64
-    const base64Image = req.file.buffer.toString('base64');
-    const dataUrl = `data:${req.file.mimetype};base64,${base64Image}`;
+    const dataUrl = `data:${mimeType};base64,${imageBase64}`;
 
     // Llamar a GPT-4 Vision
     const response = await openAIClient.chat.completions.create({
