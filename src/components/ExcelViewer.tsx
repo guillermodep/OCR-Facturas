@@ -29,7 +29,8 @@ export const ExcelViewer: React.FC<ExcelViewerProps> = ({ processedData }) => {
     headers: [
       'Proveedor',
       'Cód. Central',
-      'Cód. Artículo', 
+      'Cód. Artículo',
+      'Código Maestro',
       'Descripción',
       'Unidades',
       'Precio Ud.',
@@ -64,6 +65,7 @@ export const ExcelViewer: React.FC<ExcelViewerProps> = ({ processedData }) => {
               proveedor,
               item.codCentral || '',
               item.codArticulo || '',
+              item.codMaestro || '',
               item.descripcion || '',
               unidades,
               precioUd,
@@ -91,12 +93,12 @@ export const ExcelViewer: React.FC<ExcelViewerProps> = ({ processedData }) => {
     // Actualizar valor editado
     newRows[rowIndex][colIndex] = value;
 
-    // Recalcular Importe si cambian % IVA (7) o Neto (8) con la nueva columna agregada al inicio
-    if (colIndex === 7 || colIndex === 8) {
-      const iva = parseFloat(newRows[rowIndex][7] || 0);
-      const neto = parseFloat(newRows[rowIndex][8] || 0);
+    // Recalcular Importe si cambian % IVA (8) o Neto (9)
+    if (colIndex === 8 || colIndex === 9) {
+      const iva = parseFloat(newRows[rowIndex][8] || 0);
+      const neto = parseFloat(newRows[rowIndex][9] || 0);
       const importe = neto * (1 + (isNaN(iva) ? 0 : iva) / 100);
-      newRows[rowIndex][9] = isNaN(importe) ? 0 : importe;
+      newRows[rowIndex][10] = isNaN(importe) ? 0 : importe;
     }
 
     setData({ ...data, rows: newRows });
@@ -240,7 +242,7 @@ export const ExcelViewer: React.FC<ExcelViewerProps> = ({ processedData }) => {
                       >
                         {editingCell?.row === rowIndex && editingCell?.col === colIndex ? (
                           <input
-                            type={colIndex >= 3 ? 'number' : 'text'}
+                            type={colIndex >= 5 ? 'number' : 'text'}
                             value={cell}
                             onChange={(e) => handleCellEdit(rowIndex, colIndex, e.target.value)}
                             onBlur={handleCellBlur}
@@ -249,7 +251,7 @@ export const ExcelViewer: React.FC<ExcelViewerProps> = ({ processedData }) => {
                           />
                         ) : (
                           <div className="px-2 py-1 min-h-[28px]">
-                            {colIndex >= 3 && colIndex !== 2 ? 
+                            {colIndex >= 5 ? 
                               (typeof cell === 'number' ? cell.toFixed(2) : cell) : 
                               cell
                             }

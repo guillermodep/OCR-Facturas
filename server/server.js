@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const { AzureOpenAI } = require('openai');
+const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config();
 
 const app = express();
@@ -13,6 +14,9 @@ const openAIClient = new AzureOpenAI({
   deployment: process.env.OPENAI_DEPLOYMENT,
   apiVersion: process.env.OPENAI_API_VERSION
 });
+
+// Configuración de Supabase
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
 
 // Middleware
 app.use(cors());
@@ -102,6 +106,36 @@ app.post('/api/process-invoice', async (req, res) => {
         fecha: new Date().toLocaleDateString(),
         items: []
       };
+    }
+
+    // Enriquecer los datos con los códigos de artículo del maestro
+    if (invoiceData.items && invoiceData.items.length > 0) {
+      const enrichedItems = await Promise.all(invoiceData.items.map(async (item) => {
+        if (!item.descripcion) {
+          return { ...item, codMaestro: 'N/A' };
+        }
+
+        // Buscar el artículo en Supabase por descripción normalizada
+        const normalizedDescription = item.descripcion.trim();
+        console.log(`Buscando artículo: '${normalizedDescription}'`);
+
+        const { data: articuloData, error: articuloError } = await supabase
+          .rpc('search_articles', { keyword: normalizedDescription });
+
+        console.log(`Resultado para '${normalizedDescription}':`, articuloData);
+
+        if (articuloError) {
+          console.error('Error buscando artículo en Supabase:', articuloError);
+          return { ...item, codMaestro: 'Error' };
+        }
+
+        return {
+          ...item,
+          codMaestro: articuloData && articuloData.length > 0 ? articuloData[0].codigo : 'No encontrado'
+        };
+      }));
+
+      invoiceData.items = enrichedItems;
     }
 
     res.json({
