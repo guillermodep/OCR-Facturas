@@ -501,11 +501,17 @@ export const ExcelViewer: React.FC<ExcelViewerProps> = ({ processedData }) => {
             const netoCalc = item.neto ?? (unidades * precioUd * (1 - dto / 100));
             const importe = netoCalc * (1 + iva / 100);
             
+            // Obtener cliente de los datos de la factura
+            const cliente = invoiceData.cliente || invoiceData.data?.cliente || '';
+            const delegacion = buscarDelegacion(cliente);
+            
             return [
               fileName,
               proveedor,
               datosProveedor.cif,
               datosProveedor.codigo,
+              cliente,
+              delegacion,
               datosArticulo.codigo || item.codArticulo || '',
               datosArticulo.subfamilia || '',
               item.descripcion || '',
@@ -547,7 +553,15 @@ export const ExcelViewer: React.FC<ExcelViewerProps> = ({ processedData }) => {
               datosProveedor.codigo,
               cliente,
               delegacion,
-              '', '', 0, 0, 0, 0, 0 // Campos vacíos o con valores por defecto
+              '', // Cód. Artículo
+              '', // Subfamilia
+              '', // Descripción
+              0,  // Unidades
+              0,  // Precio Ud.
+              0,  // % Dto.
+              0,  // % IVA
+              0,  // Neto
+              0   // Importe
             ]];
           }
           
@@ -626,11 +640,15 @@ export const ExcelViewer: React.FC<ExcelViewerProps> = ({ processedData }) => {
             }
             
             // Crear una nueva fila con los campos de cliente y delegación insertados en las posiciones 3 y 4
+            // Asegurarnos de que las columnas estén en el orden correcto
             return [
-              ...row.slice(0, 3), // Proveedor, CIF, Cód. Proveedor
-              cliente,            // Cliente
-              delegacion,         // Delegación
-              ...row.slice(3)     // Resto de campos
+              row[0],              // Archivo
+              row[1],              // Proveedor
+              row[2],              // CIF
+              datosProveedor.codigo, // Cód. Proveedor (usar el valor del maestro)
+              cliente,              // Cliente
+              delegacion,           // Delegación
+              ...row.slice(6)       // Resto de campos (Cód. Artículo, Subfamilia, etc.)
             ];
           });
         });
@@ -649,24 +667,24 @@ export const ExcelViewer: React.FC<ExcelViewerProps> = ({ processedData }) => {
     // Actualizar valor editado
     newRows[rowIndex][colIndex] = value;
 
-    // Si se edita el nombre del proveedor (columna 0), actualizar el CIF (columna 1) y código de proveedor (columna 2)
-    if (colIndex === 0) {
+    // Si se edita el nombre del proveedor (columna 1), actualizar el CIF (columna 2) y código de proveedor (columna 3)
+    if (colIndex === 1) {
       const { codigo, cif } = buscarDatosProveedor(value);
-      newRows[rowIndex][1] = cif;
-      newRows[rowIndex][2] = codigo;
+      newRows[rowIndex][2] = cif;
+      newRows[rowIndex][3] = codigo;
     }
     
-    // Si se edita el cliente (columna 3), actualizar la delegación (columna 4)
-    if (colIndex === 3) {
+    // Si se edita el cliente (columna 4), actualizar la delegación (columna 5)
+    if (colIndex === 4) {
       const delegacion = buscarDelegacion(value);
-      newRows[rowIndex][4] = delegacion;
+      newRows[rowIndex][5] = delegacion;
     }
-
-    // Si se edita la descripción del artículo (columna 7), actualizar el código de artículo (columna 5) y subfamilia (columna 6)
-    if (colIndex === 7) {
+    
+    // Si se edita la descripción del artículo (columna 8), actualizar el código de artículo (columna 6) y subfamilia (columna 7)
+    if (colIndex === 8) {
       const { codigo, subfamilia, iva } = buscarDatosArticulo(value);
-      newRows[rowIndex][5] = codigo;
-      newRows[rowIndex][6] = subfamilia;
+      newRows[rowIndex][6] = codigo;
+      newRows[rowIndex][7] = subfamilia;
       newRows[rowIndex][12] = iva.toString();
     }
     
@@ -675,6 +693,7 @@ export const ExcelViewer: React.FC<ExcelViewerProps> = ({ processedData }) => {
       rows: newRows
     });
   };
+
 
   const handleCellDoubleClick = (rowIndex: number, colIndex: number) => {
     setEditingCell({ row: rowIndex, col: colIndex });
