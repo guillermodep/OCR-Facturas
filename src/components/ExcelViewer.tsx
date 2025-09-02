@@ -542,7 +542,7 @@ export const ExcelViewer: React.FC<ExcelViewerProps> = ({ processedData }) => {
               delegacion,         // Delegación
               ...row.slice(3)     // Resto de campos
             ];
-          });
+          }).filter((row: any[]) => row.length > 0); // Filtrar filas vacías
         });
         
         const updatedRows = [...data.rows, ...rowsWithClienteYDelegacion];
