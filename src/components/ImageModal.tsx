@@ -6,7 +6,7 @@ import {
   DialogTitle,
   DialogPortal,
   DialogOverlay
-} from '../components/ui/dialog';
+} from '@/components/ui/dialog';
 import { X } from 'lucide-react';
 
 interface ImageModalProps {
