@@ -1,7 +1,8 @@
 import React, { useCallback, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { Upload, X, FileImage, Loader2 } from 'lucide-react';
+import { Upload, X, FileImage, Loader2, Search } from 'lucide-react';
 import { Button } from './ui/button';
+import { ImageModal } from './ImageModal';
 
 interface UploadedImage {
   id: string;
@@ -20,6 +21,8 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImagesProcessed 
   const [isProcessing, setIsProcessing] = useState(false);
   const [processProgress, setProcessProgress] = useState(0);
   const [currentProcessingImage, setCurrentProcessingImage] = useState<string>('');
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<{url: string, name: string} | null>(null);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const newImages = acceptedFiles.map(file => ({
@@ -82,7 +85,8 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImagesProcessed 
         console.log('Datos extraídos:', invoiceData);
 
         processedData.push({ 
-          data: invoiceData,
+          data: { ...invoiceData, fileName: image.file.name },
+          fileName: image.file.name,
           success: true 
         });
 
@@ -274,8 +278,28 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImagesProcessed 
                       <img
                         src={image.preview}
                         alt={image.file.name}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover cursor-pointer"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedImage({url: image.preview, name: image.file.name});
+                          setModalOpen(true);
+                        }}
                       />
+                    )}
+                    
+                    {/* Botón de vista previa para imágenes */}
+                    {image.file.type !== 'application/pdf' && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedImage({url: image.preview, name: image.file.name});
+                          setModalOpen(true);
+                        }}
+                        className="absolute bottom-2 right-2 bg-white/80 hover:bg-white rounded-full p-2 shadow-lg transition-all transform hover:scale-110 z-10"
+                        title="Ver imagen"
+                      >
+                        <Search className="h-4 w-4 text-indigo-600" />
+                      </button>
                     )}
                     
                     {/* Status Overlays */}
@@ -306,7 +330,10 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImagesProcessed 
                     
                     {/* Delete Button */}
                     <button
-                      onClick={() => removeImage(image.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeImage(image.id);
+                      }}
                       className="absolute -top-2 -right-2 bg-gradient-to-br from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white rounded-full p-2 shadow-xl transition-all transform hover:scale-110 hover:rotate-12 z-10"
                       title="Eliminar"
                     >
@@ -343,6 +370,16 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImagesProcessed 
             ))}
           </div>
         </div>
+      )}
+      
+      {/* Modal para mostrar la imagen en tamaño grande */}
+      {selectedImage && (
+        <ImageModal 
+          isOpen={modalOpen}
+          onClose={() => setModalOpen(false)}
+          imageUrl={selectedImage.url}
+          fileName={selectedImage.name}
+        />
       )}
     </div>
   );

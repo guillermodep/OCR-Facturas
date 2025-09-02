@@ -483,7 +483,7 @@ export const ExcelViewer: React.FC<ExcelViewerProps> = ({ processedData }) => {
         const items = invoiceData.items || invoiceData.data?.items || [];
         
         // Obtener el nombre del archivo
-        const fileName = invoiceData.fileName || invoiceData.data?.fileName || invoice.fileName || 'Sin nombre';
+        const fileName = invoice.fileName || invoiceData.fileName || invoiceData.data?.fileName || 'Sin nombre';
         
         if (Array.isArray(items) && items.length > 0) {
           return items.map((item: InvoiceItem) => {
@@ -536,7 +536,7 @@ export const ExcelViewer: React.FC<ExcelViewerProps> = ({ processedData }) => {
           const delegacion = buscarDelegacion(cliente);
           
           // Obtener el nombre del archivo
-          const fileName = invoiceData.fileName || invoiceData.data?.fileName || invoice.fileName || 'Sin nombre';
+          const fileName = invoice.fileName || invoiceData.fileName || invoiceData.data?.fileName || 'Sin nombre';
           
           // Si no hay items o son pocos, crear solo una fila para esta factura
           if (!Array.isArray(items) || items.length === 0) {
