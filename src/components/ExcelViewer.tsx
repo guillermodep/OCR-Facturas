@@ -518,6 +518,7 @@ export const ExcelViewer: React.FC<ExcelViewerProps> = ({ processedData }) => {
       
       if (newRows.length > 0) {
         // Añadir campos de cliente y delegación a cada fila
+        // Crear una fila por cada factura, incluso si no tiene items
         const rowsWithClienteYDelegacion = processedData.flatMap((invoice, invoiceIndex) => {
           // Manejar diferentes estructuras de datos
           const invoiceData = invoice.data || invoice;
@@ -526,12 +527,43 @@ export const ExcelViewer: React.FC<ExcelViewerProps> = ({ processedData }) => {
           // Obtener el cliente directamente de processed_invoices
           const cliente = invoiceData.cliente || invoiceData.data?.cliente || '';
           
+          // Si no hay items, crear al menos una fila para esta factura
+          if (!Array.isArray(items) || items.length === 0) {
+            const proveedor = invoiceData.proveedor || invoiceData.data?.proveedor || '';
+            const datosProveedor = buscarDatosProveedor(proveedor);
+            const delegacion = buscarDelegacion(cliente);
+            
+            return [[
+              proveedor,
+              datosProveedor.cif,
+              datosProveedor.codigo,
+              cliente,
+              delegacion,
+              '', '', 0, 0, 0, 0, 0 // Campos vacíos o con valores por defecto
+            ]];
+          }
+          
+          // Procesar normalmente si hay items
           return items.map((_: InvoiceItem, itemIndex: number) => {
             // Obtener la fila correspondiente de newRows
             const rowIndex = invoiceIndex * items.length + itemIndex;
             const row = rowIndex < newRows.length ? newRows[rowIndex] : [];
             
-            if (!row.length) return []; // Protección contra índices inválidos
+            if (!row.length) {
+              // Si no hay fila correspondiente, crear una nueva con la información básica
+              const proveedor = invoiceData.proveedor || invoiceData.data?.proveedor || '';
+              const datosProveedor = buscarDatosProveedor(proveedor);
+              const delegacion = buscarDelegacion(cliente);
+              
+              return [
+                proveedor,
+                datosProveedor.cif,
+                datosProveedor.codigo,
+                cliente,
+                delegacion,
+                '', '', 0, 0, 0, 0, 0 // Campos vacíos o con valores por defecto
+              ];
+            }
             
             const delegacion = buscarDelegacion(cliente);
             
@@ -542,7 +574,7 @@ export const ExcelViewer: React.FC<ExcelViewerProps> = ({ processedData }) => {
               delegacion,         // Delegación
               ...row.slice(3)     // Resto de campos
             ];
-          }).filter((row: any[]) => row.length > 0); // Filtrar filas vacías
+          });
         });
         
         const updatedRows = [...data.rows, ...rowsWithClienteYDelegacion];
