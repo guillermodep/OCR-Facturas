@@ -52,6 +52,7 @@ interface Delegacion {
 export const ExcelViewer: React.FC<ExcelViewerProps> = ({ processedData }) => {
   const [data, setData] = useState<ExcelData>({
     headers: [
+      'Archivo',
       'Proveedor',
       'CIF',
       'Cód. Proveedor',
@@ -481,6 +482,9 @@ export const ExcelViewer: React.FC<ExcelViewerProps> = ({ processedData }) => {
         const invoiceData = invoice.data || invoice;
         const items = invoiceData.items || invoiceData.data?.items || [];
         
+        // Obtener el nombre del archivo
+        const fileName = invoiceData.fileName || invoiceData.data?.fileName || invoice.fileName || 'Sin nombre';
+        
         if (Array.isArray(items) && items.length > 0) {
           return items.map((item: InvoiceItem) => {
             const proveedor = invoiceData.proveedor || invoiceData.data?.proveedor || '';
@@ -498,6 +502,7 @@ export const ExcelViewer: React.FC<ExcelViewerProps> = ({ processedData }) => {
             const importe = netoCalc * (1 + iva / 100);
             
             return [
+              fileName,
               proveedor,
               datosProveedor.cif,
               datosProveedor.codigo,
@@ -530,9 +535,13 @@ export const ExcelViewer: React.FC<ExcelViewerProps> = ({ processedData }) => {
           const datosProveedor = buscarDatosProveedor(proveedor);
           const delegacion = buscarDelegacion(cliente);
           
+          // Obtener el nombre del archivo
+          const fileName = invoiceData.fileName || invoiceData.data?.fileName || invoice.fileName || 'Sin nombre';
+          
           // Si no hay items o son pocos, crear solo una fila para esta factura
           if (!Array.isArray(items) || items.length === 0) {
             return [[
+              fileName,
               proveedor,
               datosProveedor.cif,
               datosProveedor.codigo,
@@ -562,6 +571,7 @@ export const ExcelViewer: React.FC<ExcelViewerProps> = ({ processedData }) => {
               const importe = netoCalc * (1 + iva / 100);
               
               return [[
+                fileName,
                 proveedor,
                 datosProveedor.cif,
                 datosProveedor.codigo,
@@ -597,6 +607,7 @@ export const ExcelViewer: React.FC<ExcelViewerProps> = ({ processedData }) => {
               const importe = netoCalc * (1 + iva / 100);
               
               return [
+                fileName,
                 proveedor,
                 datosProveedor.cif,
                 datosProveedor.codigo,
