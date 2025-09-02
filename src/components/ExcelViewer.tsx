@@ -518,7 +518,7 @@ export const ExcelViewer: React.FC<ExcelViewerProps> = ({ processedData }) => {
       
       if (newRows.length > 0) {
         // Añadir campos de cliente y delegación a cada fila
-        // Crear una fila por cada factura, incluso si no tiene items
+        // Crear una fila por cada factura, evitando duplicaciones
         const rowsWithClienteYDelegacion = processedData.flatMap((invoice, invoiceIndex) => {
           // Manejar diferentes estructuras de datos
           const invoiceData = invoice.data || invoice;
@@ -526,13 +526,12 @@ export const ExcelViewer: React.FC<ExcelViewerProps> = ({ processedData }) => {
           
           // Obtener el cliente directamente de processed_invoices
           const cliente = invoiceData.cliente || invoiceData.data?.cliente || '';
+          const proveedor = invoiceData.proveedor || invoiceData.data?.proveedor || '';
+          const datosProveedor = buscarDatosProveedor(proveedor);
+          const delegacion = buscarDelegacion(cliente);
           
-          // Si no hay items, crear al menos una fila para esta factura
+          // Si no hay items o son pocos, crear solo una fila para esta factura
           if (!Array.isArray(items) || items.length === 0) {
-            const proveedor = invoiceData.proveedor || invoiceData.data?.proveedor || '';
-            const datosProveedor = buscarDatosProveedor(proveedor);
-            const delegacion = buscarDelegacion(cliente);
-            
             return [[
               proveedor,
               datosProveedor.cif,
@@ -543,17 +542,59 @@ export const ExcelViewer: React.FC<ExcelViewerProps> = ({ processedData }) => {
             ]];
           }
           
-          // Procesar normalmente si hay items
-          return items.map((_: InvoiceItem, itemIndex: number) => {
+          // Si hay muchos items pero son todos iguales, limitar a máximo 3 filas
+          if (items.length > 3) {
+            // Verificar si todos los items son iguales (sin descripción o con la misma descripción)
+            const allSameItems = items.every((item, _, arr) => 
+              (!item.descripcion && !arr[0].descripcion) || 
+              (item.descripcion === arr[0].descripcion)
+            );
+            
+            if (allSameItems) {
+              // Mostrar solo el primer item
+              const item = items[0];
+              const datosArticulo = item.descripcion ? buscarDatosArticulo(item.descripcion) : { codigo: '', subfamilia: '', iva: 0 };
+              const unidades = item.unidades ?? 0;
+              const precioUd = item.precioUd ?? 0;
+              const dto = item.dto ?? 0;
+              const iva = datosArticulo.iva || item.iva || 0;
+              const netoCalc = item.neto ?? (unidades * precioUd * (1 - dto / 100));
+              const importe = netoCalc * (1 + iva / 100);
+              
+              return [[
+                proveedor,
+                datosProveedor.cif,
+                datosProveedor.codigo,
+                cliente,
+                delegacion,
+                datosArticulo.codigo || item.codArticulo || '',
+                datosArticulo.subfamilia || '',
+                item.descripcion || '',
+                unidades,
+                precioUd,
+                dto,
+                iva,
+                netoCalc,
+                importe
+              ]];
+            }
+          }
+          
+          // Procesar normalmente si hay items diferentes
+          return items.map((item: InvoiceItem, itemIndex: number) => {
             // Obtener la fila correspondiente de newRows
             const rowIndex = invoiceIndex * items.length + itemIndex;
             const row = rowIndex < newRows.length ? newRows[rowIndex] : [];
             
             if (!row.length) {
               // Si no hay fila correspondiente, crear una nueva con la información básica
-              const proveedor = invoiceData.proveedor || invoiceData.data?.proveedor || '';
-              const datosProveedor = buscarDatosProveedor(proveedor);
-              const delegacion = buscarDelegacion(cliente);
+              const datosArticulo = item.descripcion ? buscarDatosArticulo(item.descripcion) : { codigo: '', subfamilia: '', iva: 0 };
+              const unidades = item.unidades ?? 0;
+              const precioUd = item.precioUd ?? 0;
+              const dto = item.dto ?? 0;
+              const iva = datosArticulo.iva || item.iva || 0;
+              const netoCalc = item.neto ?? (unidades * precioUd * (1 - dto / 100));
+              const importe = netoCalc * (1 + iva / 100);
               
               return [
                 proveedor,
@@ -561,11 +602,17 @@ export const ExcelViewer: React.FC<ExcelViewerProps> = ({ processedData }) => {
                 datosProveedor.codigo,
                 cliente,
                 delegacion,
-                '', '', 0, 0, 0, 0, 0 // Campos vacíos o con valores por defecto
+                datosArticulo.codigo || item.codArticulo || '',
+                datosArticulo.subfamilia || '',
+                item.descripcion || '',
+                unidades,
+                precioUd,
+                dto,
+                iva,
+                netoCalc,
+                importe
               ];
             }
-            
-            const delegacion = buscarDelegacion(cliente);
             
             // Crear una nueva fila con los campos de cliente y delegación insertados en las posiciones 3 y 4
             return [
