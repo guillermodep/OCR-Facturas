@@ -38,9 +38,10 @@ export const ImageModal: React.FC<ImageModalProps> = ({
   // Si no está abierto, no renderizar nada
   if (!isOpen) return null;
   
-  return (
+  // Asegurarnos de que el portal se renderice correctamente en SSR
+  const ModalContent = () => (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogPortal>
+      <DialogPortal forceMount>
         <DialogOverlay className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm animate-in fade-in-0" />
         <DialogContent className="max-w-4xl w-[90vw] max-h-[90vh] p-0 overflow-hidden bg-white flex flex-col fixed left-[50%] top-[50%] z-50 translate-x-[-50%] translate-y-[-50%] rounded-lg animate-in fade-in-0 zoom-in-95">
           <DialogHeader className="p-4 border-b">
@@ -68,4 +69,7 @@ export const ImageModal: React.FC<ImageModalProps> = ({
       </DialogPortal>
     </Dialog>
   );
+  
+  // Usar un enfoque híbrido para asegurar compatibilidad en diferentes entornos
+  return typeof document !== 'undefined' ? <ModalContent /> : null;
 };
