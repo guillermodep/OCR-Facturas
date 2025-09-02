@@ -1,8 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { Upload, X, FileImage, Loader2, Search } from 'lucide-react';
+import { Upload, X, FileImage, Loader2, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button.tsx';
-import { ImageModal } from './ImageModal.tsx';
 
 interface UploadedImage {
   id: string;
@@ -21,8 +20,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImagesProcessed 
   const [isProcessing, setIsProcessing] = useState(false);
   const [processProgress, setProcessProgress] = useState(0);
   const [currentProcessingImage, setCurrentProcessingImage] = useState<string>('');
-  const [modalOpen, setModalOpen] = useState(false);
-  const [selectedImage, setSelectedImage] = useState<{url: string, name: string} | null>(null);
+  // No necesitamos estados para el modal ya que abriremos en nueva pestaña
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const newImages = acceptedFiles.map(file => ({
@@ -281,8 +279,8 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImagesProcessed 
                         className="w-full h-full object-cover cursor-pointer"
                         onClick={(e) => {
                           e.stopPropagation();
-                          setSelectedImage({url: image.preview, name: image.file.name});
-                          setModalOpen(true);
+                          // Abrir la imagen en una nueva pestaña
+                          window.open(image.preview, '_blank');
                         }}
                       />
                     )}
@@ -292,13 +290,13 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImagesProcessed 
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          setSelectedImage({url: image.preview, name: image.file.name});
-                          setModalOpen(true);
+                          // Abrir la imagen en una nueva pestaña
+                          window.open(image.preview, '_blank');
                         }}
                         className="absolute bottom-2 right-2 bg-white/80 hover:bg-white rounded-full p-2 shadow-lg transition-all transform hover:scale-110 z-10"
-                        title="Ver imagen"
+                        title="Ver imagen en nueva pestaña"
                       >
-                        <Search className="h-4 w-4 text-indigo-600" />
+                        <ExternalLink className="h-4 w-4 text-indigo-600" />
                       </button>
                     )}
                     
@@ -372,15 +370,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImagesProcessed 
         </div>
       )}
       
-      {/* Modal para mostrar la imagen en tamaño grande */}
-      {selectedImage && (
-        <ImageModal 
-          isOpen={modalOpen}
-          onClose={() => setModalOpen(false)}
-          imageUrl={selectedImage.url}
-          fileName={selectedImage.name}
-        />
-      )}
+      {/* Ya no necesitamos el modal para mostrar la imagen */}
     </div>
   );
 };
