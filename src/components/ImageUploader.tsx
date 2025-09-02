@@ -1,8 +1,8 @@
 import React, { useCallback, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Upload, X, FileImage, Loader2, Search } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { ImageModal } from './ImageModal';
+import { Button } from '@/components/ui/button.tsx';
+import { ImageModal } from './ImageModal.tsx';
 
 interface UploadedImage {
   id: string;
