@@ -1,0 +1,382 @@
+===============================================================================
+                   MANUAL TÉCNICO - SISTEMA OCR DE FACTURAS
+===============================================================================
+
+ÍNDICE
+-------
+1. INTRODUCCIÓN Y VISIÓN GENERAL
+2. ARQUITECTURA DEL SISTEMA
+3. ESTRUCTURA DE LA BASE DE DATOS
+4. COMPONENTES PRINCIPALES
+5. FLUJO DE TRABAJO DEL SISTEMA
+6. PANTALLAS Y FUNCIONALIDADES
+7. PROCESAMIENTO OCR
+8. EDITOR DE EXCEL Y MANIPULACIÓN DE DATOS
+9. MAESTRO DE DATOS
+10. DESPLIEGUE Y CONFIGURACIÓN
+
+===============================================================================
+1. INTRODUCCIÓN Y VISIÓN GENERAL
+===============================================================================
+
+El Sistema OCR de Facturas es una aplicación web desarrollada con React y TypeScript
+que permite procesar facturas mediante reconocimiento óptico de caracteres (OCR),
+extraer datos estructurados de ellas y manipularlos en un editor tipo Excel.
+
+El sistema está diseñado para automatizar el proceso de digitalización de facturas,
+permitiendo a los usuarios cargar imágenes o PDFs de facturas, extraer automáticamente
+la información relevante mediante IA, y luego revisar, editar y exportar estos datos
+en formatos estructurados como Excel o CSV.
+
+Objetivos principales del sistema:
+- Digitalizar facturas mediante OCR avanzado
+- Estructurar datos de facturas para análisis posterior
+- Mantener maestros de datos (artículos, proveedores, delegaciones)
+- Permitir la edición y corrección manual de datos extraídos
+- Exportar datos procesados a formatos estándar
+
+===============================================================================
+2. ARQUITECTURA DEL SISTEMA
+===============================================================================
+
+El sistema está construido con una arquitectura moderna basada en:
+
+Frontend:
+- React + TypeScript: Framework principal para la interfaz de usuario
+- Vite: Herramienta de construcción y desarrollo
+- Tailwind CSS: Framework de estilos
+- Lucide React: Iconos vectoriales
+- XLSX: Biblioteca para manipulación de archivos Excel
+
+Backend:
+- Node.js: Entorno de ejecución para el servidor
+- Express: Framework para la API REST
+- Supabase: Base de datos PostgreSQL y autenticación
+- Netlify Functions: Funciones serverless para procesamiento OCR
+
+Estructura de directorios:
+- /src: Código fuente principal
+  - /assets: Recursos estáticos
+  - /components: Componentes React reutilizables
+  - /lib: Utilidades y configuración
+  - /pages: Páginas principales de la aplicación
+- /public: Archivos públicos estáticos
+- /server: Código del servidor Node.js
+- /netlify: Funciones serverless para Netlify
+
+Patrón de arquitectura:
+El sistema sigue un patrón de arquitectura basado en componentes, donde cada parte
+de la interfaz es un componente React independiente que puede ser reutilizado.
+La comunicación con el backend se realiza mediante API REST y el cliente Supabase.
+
+===============================================================================
+3. ESTRUCTURA DE LA BASE DE DATOS
+===============================================================================
+
+El sistema utiliza Supabase como plataforma de base de datos, que está basada en
+PostgreSQL. Las principales tablas en la base de datos son:
+
+1. articulos
+   - id: Identificador único (PK)
+   - codigo: Código único del artículo
+   - descripcion: Descripción detallada del artículo
+   - subfamilia: Categoría o subfamilia a la que pertenece
+   - iva: Porcentaje de IVA aplicable al artículo (número)
+
+2. proveedores
+   - id: Identificador único (PK)
+   - nombre: Nombre del proveedor
+   - codigo: Código único del proveedor
+   - cif: CIF o identificación fiscal del proveedor
+
+3. delegaciones
+   - id: Identificador único (PK)
+   - delegacion: Código de la delegación
+   - nombre_comercial: Nombre comercial de la delegación
+   - razon_social: Razón social de la entidad
+   - cliente: Nombre del cliente asociado a la delegación
+   - codigo: Código único de la delegación
+
+4. usuarios (gestionada por Supabase Auth)
+   - id: Identificador único (PK)
+   - email: Correo electrónico del usuario
+   - password: Contraseña encriptada
+   - role: Rol del usuario en el sistema
+
+Relaciones:
+- Las facturas procesadas no se almacenan permanentemente en la base de datos,
+  sino que se procesan en memoria y se pueden exportar a Excel/CSV.
+- Los maestros de datos (artículos, proveedores, delegaciones) se utilizan para
+  enriquecer y validar los datos extraídos de las facturas.
+
+===============================================================================
+4. COMPONENTES PRINCIPALES
+===============================================================================
+
+El sistema está compuesto por varios componentes React clave:
+
+1. ImageUploader
+   - Permite arrastrar y soltar imágenes o PDFs de facturas
+   - Muestra una vista previa de las imágenes cargadas
+   - Envía las imágenes al servicio OCR para procesamiento
+   - Muestra el progreso del procesamiento
+
+2. ExcelViewer
+   - Muestra los datos extraídos en formato de tabla editable
+   - Permite editar celdas individuales
+   - Actualiza automáticamente campos relacionados (ej: al cambiar proveedor, actualiza CIF)
+   - Exporta datos a Excel o CSV
+   - Estructura de columnas:
+     * Archivo: Nombre del archivo original
+     * Proveedor: Nombre del proveedor
+     * CIF: Identificación fiscal del proveedor
+     * Cód. Proveedor: Código único del proveedor
+     * Cliente: Nombre del cliente
+     * Delegación: Código de la delegación
+     * Cód. Artículo: Código del artículo
+     * Subfamilia: Categoría del artículo
+     * Descripción: Descripción del artículo
+     * Unidades: Cantidad
+     * Precio Ud.: Precio unitario
+     * % Dto.: Porcentaje de descuento
+     * % IVA: Porcentaje de IVA
+     * Neto: Importe neto (sin IVA)
+     * Importe: Importe total (con IVA)
+
+3. EditableCell
+   - Componente para editar celdas individuales
+   - Cambia entre modo visualización y edición al hacer clic
+   - Guarda cambios al perder el foco o presionar Enter
+
+4. EditableRow
+   - Muestra una fila editable con múltiples celdas EditableCell
+   - Incluye botón para eliminar la fila
+
+5. AddRowForm
+   - Formulario para agregar nuevas filas a las tablas maestras
+   - Validación de campos requeridos
+   - Botones para guardar o cancelar
+
+===============================================================================
+5. FLUJO DE TRABAJO DEL SISTEMA
+===============================================================================
+
+El flujo de trabajo típico del sistema es el siguiente:
+
+1. Autenticación:
+   - El usuario inicia sesión en el sistema mediante la página de login
+   - Se validan las credenciales contra Supabase Auth
+   - Se almacena el token de sesión para futuras peticiones
+
+2. Carga de facturas:
+   - El usuario navega a la página de carga de facturas
+   - Arrastra y suelta imágenes o PDFs de facturas en el componente ImageUploader
+   - Puede eliminar imágenes antes de procesarlas
+   - Inicia el procesamiento con el botón "Procesar imágenes"
+
+3. Procesamiento OCR:
+   - Las imágenes se convierten a base64
+   - Se envían a la función serverless de Netlify (/api/process-invoice)
+   - La función utiliza servicios de OCR para extraer texto e información estructurada
+   - Se devuelven los datos procesados al frontend
+
+4. Visualización y edición de datos:
+   - Los datos extraídos se muestran en el componente ExcelViewer
+   - El sistema busca coincidencias en los maestros de datos para enriquecer la información
+   - El usuario puede editar celdas haciendo clic en ellas
+   - Al editar ciertos campos (proveedor, descripción), se actualizan automáticamente
+     campos relacionados (CIF, código, subfamilia, IVA)
+
+5. Exportación de datos:
+   - El usuario puede exportar los datos a Excel o CSV
+   - Se genera un archivo con los encabezados y filas mostradas en el editor
+
+6. Gestión de maestros de datos:
+   - El usuario puede navegar a la página de Maestro de Datos
+   - Puede ver, filtrar, editar, agregar o eliminar registros de artículos,
+     proveedores y delegaciones
+   - Los cambios se sincronizan con la base de datos Supabase
+
+===============================================================================
+6. PANTALLAS Y FUNCIONALIDADES
+===============================================================================
+
+El sistema cuenta con las siguientes pantallas principales:
+
+1. LoginPage
+   - Formulario de inicio de sesión
+   - Validación de credenciales contra Supabase Auth
+   - Redirección a la página principal tras autenticación exitosa
+
+2. CargarFacturasPage
+   - Componente principal para el procesamiento de facturas
+   - Incluye ImageUploader para cargar imágenes
+   - Incluye ExcelViewer para visualizar y editar datos extraídos
+   - Interfaz dividida en dos secciones principales:
+     * PASO 1: Carga de Documentos
+     * PASO 2: Editor de Datos Inteligente
+
+3. MaestroDeDatosPage
+   - Gestión de tablas maestras (artículos, proveedores, delegaciones)
+   - Interfaz con pestañas para cambiar entre las diferentes tablas
+   - Funcionalidades:
+     * Búsqueda y filtrado de registros
+     * Edición inline de celdas
+     * Adición de nuevos registros
+     * Eliminación de registros existentes
+     * Feedback visual de operaciones (carga, guardado, éxito, error)
+
+Funcionalidades comunes:
+- Navegación entre pantallas
+- Feedback visual de operaciones en curso
+- Mensajes de éxito o error
+- Diseño responsivo adaptable a diferentes tamaños de pantalla
+
+===============================================================================
+7. PROCESAMIENTO OCR
+===============================================================================
+
+El procesamiento OCR es una parte fundamental del sistema y funciona de la siguiente manera:
+
+1. Preparación de imágenes:
+   - Las imágenes o PDFs se convierten a base64 en el frontend
+   - Se envían junto con su tipo MIME a la función serverless
+
+2. Función serverless (/api/process-invoice):
+   - Recibe la imagen en base64
+   - Utiliza servicios de OCR para extraer texto
+   - Aplica algoritmos de procesamiento de lenguaje natural para identificar:
+     * Proveedor
+     * Cliente
+     * Artículos y sus descripciones
+     * Cantidades y precios
+     * Impuestos y descuentos
+   - Estructura los datos en un formato JSON consistente
+
+3. Normalización de datos:
+   - Se aplican técnicas de normalización de texto para mejorar coincidencias
+   - Se eliminan caracteres especiales, espacios extra y se convierten a minúsculas
+   - Se utilizan algoritmos de similitud para encontrar coincidencias aproximadas
+
+4. Enriquecimiento con maestros:
+   - Se buscan coincidencias en las tablas maestras para:
+     * Asignar códigos de proveedor y CIF basados en el nombre del proveedor
+     * Asignar códigos de artículo y subfamilia basados en la descripción
+     * Asignar códigos de delegación basados en el cliente
+
+5. Manejo de errores:
+   - Se implementa un sistema robusto de manejo de errores
+   - Se proporcionan mensajes de error específicos
+   - Se permite continuar con el procesamiento de otras imágenes si una falla
+
+===============================================================================
+8. EDITOR DE EXCEL Y MANIPULACIÓN DE DATOS
+===============================================================================
+
+El componente ExcelViewer es central para la manipulación de datos y funciona así:
+
+1. Estructura de datos:
+   - Mantiene un estado con headers (encabezados) y rows (filas de datos)
+   - Cada fila es un array que corresponde con los encabezados definidos
+
+2. Edición de celdas:
+   - Al hacer doble clic en una celda, se activa el modo de edición
+   - Se utiliza el componente EditableCell para manejar la edición
+   - Al confirmar la edición (Enter o pérdida de foco), se actualiza el estado
+
+3. Actualización inteligente:
+   - Al editar ciertos campos, se actualizan automáticamente campos relacionados:
+     * Editar proveedor (columna 1) → Actualiza CIF (columna 2) y código (columna 3)
+     * Editar cliente (columna 4) → Actualiza delegación (columna 5)
+     * Editar descripción (columna 8) → Actualiza código artículo (columna 6),
+       subfamilia (columna 7) e IVA (columna 12)
+
+4. Funciones auxiliares:
+   - buscarDatosProveedor: Busca información del proveedor en el maestro
+   - buscarDatosArticulo: Busca información del artículo en el maestro
+   - buscarDelegacion: Busca código de delegación basado en el cliente
+   - normalizarTexto: Prepara el texto para mejorar coincidencias
+
+5. Exportación:
+   - Exportación a Excel: Genera un archivo XLSX con los datos actuales
+   - Exportación a CSV: Genera un archivo CSV con los datos actuales
+   - Se aplican estilos básicos (encabezados en negrita, ajuste de columnas)
+
+6. Cálculos automáticos:
+   - Neto = Unidades * Precio Unitario * (1 - Descuento/100)
+   - Importe = Neto * (1 + IVA/100)
+
+===============================================================================
+9. MAESTRO DE DATOS
+===============================================================================
+
+El sistema de Maestro de Datos permite gestionar las tablas de referencia:
+
+1. Artículos:
+   - Campos: id, código, descripción, subfamilia, IVA
+   - Funcionalidades:
+     * Búsqueda por código o descripción
+     * Edición de cualquier campo
+     * Adición de nuevos artículos
+     * Eliminación de artículos existentes
+
+2. Proveedores:
+   - Campos: id, nombre, código, CIF
+   - Funcionalidades:
+     * Búsqueda por nombre o código
+     * Edición de cualquier campo
+     * Adición de nuevos proveedores
+     * Eliminación de proveedores existentes
+
+3. Delegaciones:
+   - Campos: id, delegación, nombre_comercial, razón_social, cliente, código
+   - Funcionalidades:
+     * Búsqueda por nombre o código
+     * Edición de cualquier campo
+     * Adición de nuevas delegaciones
+     * Eliminación de delegaciones existentes
+
+4. Operaciones CRUD:
+   - Create: Adición de nuevos registros mediante AddRowForm
+   - Read: Visualización de registros con filtrado
+   - Update: Edición inline mediante EditableCell
+   - Delete: Eliminación de registros con confirmación
+
+5. Sincronización con base de datos:
+   - Todas las operaciones se sincronizan con Supabase en tiempo real
+   - Se muestran indicadores de carga durante las operaciones
+   - Se proporcionan mensajes de éxito o error tras cada operación
+
+===============================================================================
+10. DESPLIEGUE Y CONFIGURACIÓN
+===============================================================================
+
+El sistema está configurado para desplegarse en Netlify:
+
+1. Configuración de entorno:
+   - Variables de entorno necesarias:
+     * VITE_SUPABASE_URL: URL de la instancia de Supabase
+     * VITE_SUPABASE_ANON_KEY: Clave anónima de Supabase
+
+2. Estructura de despliegue:
+   - Frontend: Desplegado como aplicación estática en Netlify
+   - Funciones serverless: Desplegadas como Netlify Functions
+   - Base de datos: Alojada en Supabase
+
+3. Configuración de rutas:
+   - Redirecciones configuradas en netlify.toml
+   - API proxy para funciones serverless
+
+4. Optimizaciones:
+   - Uso de alias de importación (@) para rutas consistentes
+   - Configuración de vite.config.ts para optimizar el build
+   - Manejo adecuado de portales para modales en producción
+
+5. Consideraciones de seguridad:
+   - Autenticación mediante Supabase Auth
+   - Políticas de Row Level Security (RLS) en Supabase
+   - Validación de datos en frontend y backend
+
+===============================================================================
+                        FIN DEL MANUAL TÉCNICO
+===============================================================================
