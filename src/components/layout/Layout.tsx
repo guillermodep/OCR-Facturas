@@ -1,8 +1,9 @@
 import { NavLink, Outlet } from 'react-router-dom';
-import { Upload, Database, LogOut } from 'lucide-react';
+import { Upload, Database, LogOut, FileText } from 'lucide-react';
 
 const navItems = [
   { name: 'Cargar Facturas', href: '/', icon: Upload },
+  { name: 'Facturas Procesadas', href: '/facturas-procesadas', icon: FileText },
   { name: 'Maestro de Datos', href: '/maestro-de-datos', icon: Database },
 ];
 
@@ -26,7 +27,7 @@ export function Layout({ onLogout, username }: LayoutProps) {
                   <NavLink
                     to={item.href}
                     className={({ isActive }) =>
-                      `flex items-center px-4 py-3 my-1 rounded-lg transition-colors duration-200 ${
+                      `flex items-center px-4 py-3 my-1 rounded-lg transition-all duration-200 transform hover:scale-105 ${
                         isActive
                           ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-md'
                           : 'text-slate-600 hover:bg-slate-100'

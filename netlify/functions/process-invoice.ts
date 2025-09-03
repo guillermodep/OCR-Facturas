@@ -86,6 +86,18 @@ export const handler: Handler = async (event) => {
       invoiceData = { raw: content };
     }
 
+    // Normalizar descripciones de productos
+    if (invoiceData.items && Array.isArray(invoiceData.items)) {
+      invoiceData.items.forEach((item: any) => {
+        if (item.descripcion) {
+          item.descripcion = item.descripcion
+            .toUpperCase()
+            .replace(/\./g, '') // Eliminar todos los puntos
+            .trim();
+        }
+      });
+    }
+
     // Guardar en Supabase
     if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY) {
       const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);

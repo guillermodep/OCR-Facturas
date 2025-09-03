@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Layout } from './components/layout/Layout';
 import { CargarFacturasPage } from './pages/CargarFacturasPage';
 import { MaestroDeDatosPage } from './pages/MaestroDeDatos';
+import { FacturasProcesadasPage } from './pages/FacturasProcesadasPage';
 import { LoginPage } from './pages/LoginPage';
 
 function App() {
@@ -42,6 +43,7 @@ function App() {
         <Route path="/" element={<Layout onLogout={handleLogout} username={username} />}>
           <Route index element={<CargarFacturasPage />} />
           <Route path="maestro-de-datos" element={<MaestroDeDatosPage />} />
+          <Route path="facturas-procesadas" element={<FacturasProcesadasPage />} />
         </Route>
       </Routes>
     </BrowserRouter>
