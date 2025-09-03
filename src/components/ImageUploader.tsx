@@ -20,6 +20,8 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onSingleImageProce
   const [isProcessing, setIsProcessing] = useState(false);
   const [processProgress, setProcessProgress] = useState(0);
   const [currentProcessingImage, setCurrentProcessingImage] = useState<string>('');
+  const [processingTimer, setProcessingTimer] = useState(0);
+  const [timerInterval, setTimerInterval] = useState<NodeJS.Timeout | null>(null);
   // No necesitamos estados para el modal ya que abriremos en nueva pestaña
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
@@ -58,6 +60,21 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onSingleImageProce
     for (const image of pendingImages) {
       setCurrentProcessingImage(image.file.name);
       setProcessProgress((processedCount / totalImages) * 100);
+      
+      // Limpiar cualquier timer anterior antes de iniciar uno nuevo
+      if (timerInterval) {
+        clearInterval(timerInterval);
+        setTimerInterval(null);
+      }
+      
+      // Iniciar timer para esta imagen
+      setProcessingTimer(0);
+      let seconds = 0;
+      const interval = setInterval(() => {
+        seconds++;
+        setProcessingTimer(seconds);
+      }, 1000); // Actualizar cada 1 segundo exacto
+      setTimerInterval(interval);
       
       setImages(prev => prev.map(img => 
         img.id === image.id ? { ...img, status: 'processing' } : img
@@ -116,6 +133,12 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onSingleImageProce
           img.id === image.id ? { ...img, status: 'error' } : img
         ));
         processedCount++;
+      } finally {
+        // Limpiar timer al finalizar procesamiento de esta imagen
+        if (timerInterval) {
+          clearInterval(timerInterval);
+          setTimerInterval(null);
+        }
       }
     }
 
@@ -127,8 +150,10 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onSingleImageProce
     // Resetear estados
     setTimeout(() => {
       setIsProcessing(false);
-      setProcessProgress(0);
+      setProcessProgress(100);
       setCurrentProcessingImage('');
+      setProcessingTimer(0);
+      setIsProcessing(false);
     }, 500);
   };
 
@@ -239,39 +264,30 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onSingleImageProce
             </Button>
           </div>
 
-          {/* Progress Bar - Professional Style */}
+          {/* Progress Bar */}
           {isProcessing && (
-            <div className="mb-8 p-6 bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 rounded-2xl shadow-lg border border-indigo-100">
-              <div className="flex justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-indigo-600 rounded-full animate-pulse"></div>
-                  <span className="text-sm font-semibold text-slate-700">
-                    Analizando: {currentProcessingImage}
+            <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                <span className="text-blue-800 font-medium">
+                  Procesando: {currentProcessingImage}
+                </span>
+                <div className="ml-auto flex items-center gap-2 bg-blue-100 px-3 py-1 rounded-full">
+                  <span className="text-blue-600 text-lg">⏱️</span>
+                  <span className="text-blue-800 font-mono font-bold">
+                    {processingTimer}s
                   </span>
                 </div>
-                <span className="text-sm font-bold text-indigo-600">
-                  {Math.round(processProgress)}%
-                </span>
               </div>
-              <div className="w-full bg-slate-200 rounded-full h-4 overflow-hidden shadow-inner">
+              <div className="w-full bg-blue-200 rounded-full h-2">
                 <div 
-                  className="h-4 rounded-full transition-all duration-700 ease-out relative overflow-hidden"
-                  style={{ 
-                    width: `${processProgress}%`,
-                    background: 'linear-gradient(90deg, #6366f1 0%, #8b5cf6 50%, #ec4899 100%)'
-                  }}
-                >
-                  <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
-                </div>
+                  className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                  style={{ width: `${processProgress}%` }}
+                ></div>
               </div>
-              <div className="flex justify-between items-center mt-3">
-                <p className="text-xs text-slate-600 font-medium">
-                  ✨ Procesando con GPT-4 Vision de alta precisión
-                </p>
-                <p className="text-xs text-emerald-600 font-semibold">
-                  📊 Agregando al editor en tiempo real
-                </p>
-              </div>
+              <p className="text-blue-700 text-sm mt-2">
+                Progreso: {Math.round(processProgress)}%
+              </p>
             </div>
           )}
 

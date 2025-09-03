@@ -1,6 +1,10 @@
-import type { Handler } from "@netlify/functions";
+import type { Handler, HandlerEvent, HandlerContext } from "@netlify/functions";
 import { AzureOpenAI } from "openai";
 import { createClient } from "@supabase/supabase-js";
+
+export const config = {
+  timeout: 30
+};
 
 // Helper function to process a single image (base64) or PDF and return structured data
 const processImageWithAI = async (client: AzureOpenAI, imageBase64: string, mimeType: string) => {
