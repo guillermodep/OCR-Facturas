@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
 import { DollarSign, FileText, Truck, Package } from 'lucide-react';
 
@@ -71,10 +71,9 @@ export const AnaliticaPage: React.FC = () => {
       return acc;
     }, {} as { [key: string]: number });
 
-    const gastoPorCategoria = invoices.flatMap(inv => inv.items || []).reduce((acc, item) => {
-      const articulo = articulos.find(a => a.descripcion === item.descripcion);
-      const categoria = articulo?.subfamilia || 'Sin Categoría';
-      acc[categoria] = (acc[categoria] || 0) + item.neto;
+    const gastoPorCliente = invoices.reduce((acc, invoice) => {
+      const gastoFactura = invoice.items?.reduce((itemAcc, item) => itemAcc + item.neto, 0) || 0;
+      acc[invoice.cliente] = (acc[invoice.cliente] || 0) + gastoFactura;
       return acc;
     }, {} as { [key: string]: number });
 
@@ -83,11 +82,24 @@ export const AnaliticaPage: React.FC = () => {
       return acc;
     }, {} as { [key: string]: number });
 
+    const allItems = invoices.flatMap(inv => inv.items || []);
+    const uniqueItems = Array.from(new Map(allItems.map(item => [item.descripcion, item])).values());
+
+    const topMasCaros = [...uniqueItems].sort((a, b) => b.precioUd - a.precioUd).slice(0, 10);
+    const topMayorIva = [...uniqueItems].sort((a, b) => b.iva - a.iva).slice(0, 10);
+
+    const proveedoresActivos = new Set(invoices.map(inv => inv.proveedor));
+    const articulosComprados = new Set(allItems.map(item => item.descripcion));
+
     return {
       totalGasto,
+      proveedoresActivosCount: proveedoresActivos.size,
+      articulosCompradosCount: articulosComprados.size,
       gastoPorProveedor: Object.entries(gastoPorProveedor).map(([name, value]) => ({ name, Gasto: value })).sort((a, b) => b.Gasto - a.Gasto),
-      gastoPorCategoria: Object.entries(gastoPorCategoria).map(([name, value]) => ({ name, Gasto: value })).sort((a, b) => b.Gasto - a.Gasto),
+      gastoPorCliente: Object.entries(gastoPorCliente).map(([name, value]) => ({ name, Gasto: value })).sort((a, b) => b.Gasto - a.Gasto),
       topArticulos: Object.entries(topArticulos).map(([name, value]) => ({ name, Gasto: value })).sort((a, b) => b.Gasto - a.Gasto).slice(0, 10),
+      topMasCaros,
+      topMayorIva,
     };
   }, [loading, error, invoices, articulos]);
 
@@ -99,7 +111,6 @@ export const AnaliticaPage: React.FC = () => {
     return <div className="flex justify-center items-center h-screen text-red-500">Error: {error}</div>;
   }
 
-  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#AF19FF', '#FF4560', '#775DD0'];
 
   return (
     <div className="p-8 bg-slate-50 min-h-screen">
@@ -124,15 +135,21 @@ export const AnaliticaPage: React.FC = () => {
         <div className="bg-white p-6 rounded-xl shadow-md flex items-center space-x-4">
           <Truck className="h-10 w-10 text-purple-500" />
           <div>
-            <p className="text-slate-500 text-sm font-medium">Proveedores</p>
-            <p className="text-2xl font-bold text-slate-800">{proveedores.length}</p>
+            <p className="text-slate-500 text-sm font-medium">Proveedores Activos</p>
+            <p className="text-2xl font-bold text-slate-800">
+              {analyticsData?.proveedoresActivosCount}
+              <span className="text-lg font-normal text-slate-400"> / {proveedores.length}</span>
+            </p>
           </div>
         </div>
         <div className="bg-white p-6 rounded-xl shadow-md flex items-center space-x-4">
           <Package className="h-10 w-10 text-orange-500" />
           <div>
-            <p className="text-slate-500 text-sm font-medium">Artículos Únicos</p>
-            <p className="text-2xl font-bold text-slate-800">{articulos.length}</p>
+            <p className="text-slate-500 text-sm font-medium">Artículos Comprados</p>
+            <p className="text-2xl font-bold text-slate-800">
+              {analyticsData?.articulosCompradosCount}
+              <span className="text-lg font-normal text-slate-400"> / {articulos.length}</span>
+            </p>
           </div>
         </div>
       </div>
@@ -153,38 +170,51 @@ export const AnaliticaPage: React.FC = () => {
           </ResponsiveContainer>
         </div>
         <div className="bg-white p-6 rounded-xl shadow-md">
-          <h2 className="text-xl font-semibold text-slate-700 mb-4">Gasto por Categoría</h2>
+          <h2 className="text-xl font-semibold text-slate-700 mb-4">Gasto por Cliente</h2>
           <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie data={analyticsData?.gastoPorCategoria} dataKey="Gasto" nameKey="name" cx="50%" cy="50%" outerRadius={100} fill="#8884d8" label>
-                {analyticsData?.gastoPorCategoria.map((_, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
-              </Pie>
+            <BarChart data={analyticsData?.gastoPorCliente.slice(0, 7)} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" />
+              <YAxis />
               <Tooltip formatter={(value: number) => `${value.toFixed(2)} €`} />
               <Legend />
-            </PieChart>
+              <Bar dataKey="Gasto" fill="#00C49F" />
+            </BarChart>
           </ResponsiveContainer>
         </div>
       </div>
 
-      {/* Top 10 Artículos */}
-      <div className="bg-white p-6 rounded-xl shadow-md">
-        <h2 className="text-xl font-semibold text-slate-700 mb-4">Top 10 Artículos por Gasto</h2>
-        <div className="overflow-x-auto">
+      {/* Tablas de Top 10 */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+        <div className="bg-white p-6 rounded-xl shadow-md xl:col-span-1">
+          <h2 className="text-xl font-semibold text-slate-700 mb-4">Top 10 Artículos por Gasto</h2>
           <table className="w-full text-sm text-left text-gray-500">
-            <thead className="text-xs text-gray-700 uppercase bg-gray-50">
-              <tr>
-                <th scope="col" className="px-6 py-3">#</th>
-                <th scope="col" className="px-6 py-3">Artículo</th>
-                <th scope="col" className="px-6 py-3">Gasto Total</th>
-              </tr>
-            </thead>
+            <thead className="text-xs text-gray-700 uppercase bg-gray-50"><tr><th scope="col" className="px-6 py-3">Artículo</th><th scope="col" className="px-6 py-3">Gasto</th></tr></thead>
             <tbody>
-              {analyticsData?.topArticulos.map((item, index) => (
-                <tr key={index} className="bg-white border-b">
-                  <td className="px-6 py-4 font-medium text-gray-900">{index + 1}</td>
-                  <td className="px-6 py-4">{item.name}</td>
-                  <td className="px-6 py-4">{item.Gasto.toFixed(2)} €</td>
-                </tr>
+              {analyticsData?.topArticulos.map((item) => (
+                <tr key={item.name} className="bg-white border-b"><td className="px-6 py-4">{item.name}</td><td className="px-6 py-4">{item.Gasto.toFixed(2)} €</td></tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="bg-white p-6 rounded-xl shadow-md xl:col-span-1">
+          <h2 className="text-xl font-semibold text-slate-700 mb-4">Top 10 Artículos más Caros</h2>
+          <table className="w-full text-sm text-left text-gray-500">
+            <thead className="text-xs text-gray-700 uppercase bg-gray-50"><tr><th scope="col" className="px-6 py-3">Artículo</th><th scope="col" className="px-6 py-3">Precio Unitario</th></tr></thead>
+            <tbody>
+              {analyticsData?.topMasCaros.map((item) => (
+                <tr key={item.descripcion} className="bg-white border-b"><td className="px-6 py-4">{item.descripcion}</td><td className="px-6 py-4">{item.precioUd.toFixed(2)} €</td></tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="bg-white p-6 rounded-xl shadow-md xl:col-span-1">
+          <h2 className="text-xl font-semibold text-slate-700 mb-4">Top 10 Artículos por IVA</h2>
+          <table className="w-full text-sm text-left text-gray-500">
+            <thead className="text-xs text-gray-700 uppercase bg-gray-50"><tr><th scope="col" className="px-6 py-3">Artículo</th><th scope="col" className="px-6 py-3">% IVA</th></tr></thead>
+            <tbody>
+              {analyticsData?.topMayorIva.map((item) => (
+                <tr key={item.descripcion} className="bg-white border-b"><td className="px-6 py-4">{item.descripcion}</td><td className="px-6 py-4">{item.iva} %</td></tr>
               ))}
             </tbody>
           </table>
