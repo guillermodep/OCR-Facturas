@@ -59,7 +59,10 @@ export function FacturasProcesadasPage() {
       .replace(/\bmarangos\b/gi, 'marangos')
       .replace(/\bpedregalejo\b/gi, 'pedregalejo')
       .replace(/\bagliano\b/gi, 'aglianon')
-      .replace(/\bua\b/gi, 'va');
+      .replace(/\bua\b/gi, 'va')
+      .replace(/\brf\b/gi, 'iqf')
+      .replace(/\bbqd\b/gi, 'bdo')
+      .replace(/\bprem\b/gi, 'prems');
   };
 
   const calcularSimilitud = (texto1: string, texto2: string): number => {
@@ -180,22 +183,70 @@ export function FacturasProcesadasPage() {
 
   const buscarDatosArticulo = (descripcion: string): {codigo: string, subfamilia: string, iva: number} => {
     if (!descripcion || loadingMaestros) return { codigo: '', subfamilia: '', iva: 0 };
+
+    // Reglas específicas para artículos complejos (basadas en prefijos)
+    const articleMap: { [key: string]: string } = {
+      'GAMBON 1': 'Gambon 1 10/20 iqf arg bdo 6x(2kg)',
+      'GAMBON 1 100/120 FR ARG BDQ 6X(2KG)': 'Gambon 1 10/20 iqf arg bdo 6x(2kg)',
+      'LANGOSTINO COLA 31/35 PREM S/BLQ ECU 10X(2KG)': 'Langostino colas 31/35prems/blq ecu10x2k',
+      'CALAMAR PAT 4 10/13 BLQ ARG LLN (1X5KG/AP)': 'Calamar pat 4 10/13 blq arg llin (1x5kg)',
+      'CALAMAR DEL CABO EXTRA M 18/25 ENV SUD (1X4KG)': 'Calamar del cabo extra M 18/25 (Limpio)',
+      'CALAMAR PAT 4': 'Calamar pat 4 10/13 blq arg llin (1x5kg)',
+      'BOQUERON VINAGRE': 'Boqueron vinagre bdja 9X(500gr)',
+      'GUISANTES CN 4X(2,5KG)':'Guisantes C.nav 4x(2,5kg)',
+      'AAFR SALMON 5/6':'AAFR salmon 5/6 1x6kg ap',
+      'CACAHUETES':'Cacahuetes Garrapiñados',
+      'HAMBURGUE TERNERA':'Hamburguesa ternera',
+      'ENSALADA MEZCLUM FLORETTE':'Ensalada mezclum 500 gr. Florette',
+      'BURGER POTATO ROLLS 100G':'Burger potato rolls 100gr (c/18u)',
+      'MANTEQUILLA 82%MG CAMPINA 10K+':'Mantequilla 82 10Kgs',
+      'MASCARPONE 500 GR':'Mascarpone 500Gr',
+      'CREMETTE':'Cremette 30 cubo 3,5kg',
+    };
+
+    for (const key in articleMap) {
+      if (descripcion.trim().startsWith(key)) {
+        const mappedDescription = articleMap[key];
+        const targetArticle = articulos.find(a => a.descripcion === mappedDescription);
+        if (targetArticle) {
+          return { codigo: targetArticle.codigo || '', subfamilia: targetArticle.subfamilia || '', iva: targetArticle.iva || 0 };
+        }
+        break; // Se encontró una regla, no seguir buscando
+      }
+    }
+
+    const normalizarDescripcionArticulo = (texto: string) => {
+      if (!texto) return '';
+      return corregirErroresTipograficos(texto)
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, ''); // Elimina todo lo que no sea letra o número
+    };
+
+    const descFacturaNormalizada = normalizarDescripcionArticulo(descripcion);
+
+    // Búsqueda por coincidencia exacta tras normalización agresiva
+    for (const articulo of articulos) {
+      if (!articulo.descripcion) continue;
+      const descMaestroNormalizada = normalizarDescripcionArticulo(articulo.descripcion);
+      if (descMaestroNormalizada === descFacturaNormalizada) {
+        return { codigo: articulo.codigo || '', subfamilia: articulo.subfamilia || '', iva: articulo.iva || 0 };
+      }
+    }
+    
+    // Fallback a la búsqueda por similitud con normalización estándar
     const descripcionNormalizada = normalizarTexto(corregirErroresTipograficos(descripcion));
     let mejorCoincidencia = null;
     let mejorPuntuacion = 0;
     for (const articulo of articulos) {
       if (!articulo.descripcion) continue;
       const descripcionArtNormalizada = normalizarTexto(corregirErroresTipograficos(articulo.descripcion));
-      if (descripcionArtNormalizada === descripcionNormalizada) {
-        return { codigo: articulo.codigo || '', subfamilia: articulo.subfamilia || '', iva: articulo.iva || 0 };
-      }
       const similitud = calcularSimilitud(descripcionNormalizada, descripcionArtNormalizada);
       if (similitud > mejorPuntuacion) {
         mejorPuntuacion = similitud;
         mejorCoincidencia = articulo;
       }
     }
-    return mejorPuntuacion > 60 && mejorCoincidencia ? { codigo: mejorCoincidencia.codigo || '', subfamilia: mejorCoincidencia.subfamilia || '', iva: mejorCoincidencia.iva || 0 } : { codigo: '', subfamilia: '', iva: 0 };
+    return mejorPuntuacion > 75 && mejorCoincidencia ? { codigo: mejorCoincidencia.codigo || '', subfamilia: mejorCoincidencia.subfamilia || '', iva: mejorCoincidencia.iva || 0 } : { codigo: '', subfamilia: '', iva: 0 };
   };
 
   const exportInvoicesToExcel = (invoicesToExport: ProcessedInvoice[]) => {
