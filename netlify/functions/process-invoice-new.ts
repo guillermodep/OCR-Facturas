@@ -63,13 +63,13 @@ const processImageWithAI = async (client: AzureOpenAI, imageBase64: string, mime
 }
 Sé extremadamente preciso con los números y códigos. Extrae TODOS los productos de la factura.`,
               },
-              { type: "image_url", image_url: { url: dataUrl, detail: "low" } },
+              { type: "image_url", image_url: { url: dataUrl, detail: "high" } },
             ],
           },
         ],
-        max_tokens: 2000,
+        max_tokens: 32768,
         temperature: 0.1,
-        model: "gpt-4o-mini",
+        model: "gpt-4o",
       });
       
       const content = response.choices[0]?.message?.content || "{}";
