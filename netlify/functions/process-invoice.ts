@@ -1,5 +1,6 @@
 import type { Handler } from "@netlify/functions";
 import { AzureOpenAI } from "openai";
+import { createClient } from "@supabase/supabase-js";
 
 // Netlify Function: /api/process-invoice
 // Env vars must be configured in Netlify dashboard
@@ -83,6 +84,28 @@ export const handler: Handler = async (event) => {
       }
     } else {
       invoiceData = { raw: content };
+    }
+
+    // Guardar en Supabase
+    if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY) {
+      const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
+      
+      const { error: dbError } = await supabase
+        .from('processed_invoices')
+        .insert({
+          numero_factura: invoiceData.numeroFactura,
+          fecha_factura: invoiceData.fecha,
+          proveedor: invoiceData.proveedor,
+          cliente: invoiceData.cliente,
+          items: invoiceData.items,
+        });
+
+      if (dbError) {
+        console.error('Error guardando en Supabase:', dbError);
+        // Opcional: decidir si devolver un error al cliente si la DB falla
+      }
+    } else {
+      console.warn('Supabase env vars (URL or Service Key) no configuradas. Saltando guardado en DB.');
     }
 
     return {

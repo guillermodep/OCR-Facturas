@@ -30,3 +30,6 @@ server/.env
 
 # Vite cache
 .vite/
+
+# Local Netlify folder
+.netlify

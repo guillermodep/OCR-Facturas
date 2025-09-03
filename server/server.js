@@ -1,8 +1,8 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { AzureOpenAI } = require('openai');
 const { createClient } = require('@supabase/supabase-js');
-require('dotenv').config();
 
 const app = express();
 const port = process.env.PORT || 5005;
@@ -16,7 +16,7 @@ const openAIClient = new AzureOpenAI({
 });
 
 // Configuración de Supabase
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 
 // Middleware
 app.use(cors());
@@ -136,6 +136,36 @@ app.post('/api/process-invoice', async (req, res) => {
       }));
 
       invoiceData.items = enrichedItems;
+    }
+
+    // Guardar la factura procesada en la base de datos
+    try {
+      const invoiceToSave = {
+        numero_factura: invoiceData.numeroFactura,
+        fecha_factura: invoiceData.fecha,
+        proveedor: invoiceData.proveedor,
+        cliente: invoiceData.cliente,
+        items: invoiceData.items,
+      };
+      console.log('Intentando guardar en DB:', JSON.stringify(invoiceToSave, null, 2));
+
+      const { error: insertError } = await supabase
+        .from('processed_invoices')
+        .insert([{
+          numero_factura: invoiceData.numeroFactura,
+          fecha_factura: invoiceData.fecha,
+          proveedor: invoiceData.proveedor,
+          cliente: invoiceData.cliente,
+          items: invoiceData.items,
+        }]);
+
+      if (insertError) {
+        throw insertError;
+      }
+      console.log('Factura guardada en la base de datos.');
+    } catch (dbError) {
+      console.error('Error guardando factura en Supabase:', dbError);
+      // No bloqueamos la respuesta al cliente, solo registramos el error
     }
 
     res.json({
