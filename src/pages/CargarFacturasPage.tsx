@@ -6,14 +6,28 @@ import { FileSpreadsheet, Sparkles, Activity, Zap } from 'lucide-react';
 export function CargarFacturasPage() {
   const [processedData, setProcessedData] = useState<any[]>([]);
 
-  const handleImagesProcessed = (data: any[]) => {
-    console.log('Datos recibidos en CargarFacturasPage:', data);
+
+  const handleSingleImageProcessed = (data: any) => {
+    console.log('Factura individual procesada:', data);
     setProcessedData(prev => {
-      const newData = [...prev, ...data];
-      console.log('processedData actualizado:', newData);
+      // Verificar si esta factura ya existe para evitar duplicados
+      const exists = prev.some(invoice => {
+        const existingFileName = invoice.fileName || invoice.data?.fileName || '';
+        const newFileName = data.fileName || data.data?.fileName || '';
+        return existingFileName === newFileName && existingFileName !== '';
+      });
+      
+      if (exists) {
+        console.log('⚠️ Factura duplicada detectada, omitiendo:', data.fileName);
+        return prev;
+      }
+      
+      const newData = [...prev, data];
+      console.log('✅ Agregando nueva factura al editor:', newData.length, 'total');
       return newData;
     });
   };
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 -m-8 p-8">
@@ -73,18 +87,22 @@ export function CargarFacturasPage() {
                 Carga de Documentos
               </h2>
             </div>
-            <ImageUploader onImagesProcessed={handleImagesProcessed} />
+            <ImageUploader 
+              onSingleImageProcessed={handleSingleImageProcessed}
+            />
           </section>
 
           {/* Excel Viewer Section */}
           <section className="animate-fadeIn">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-3 py-1 rounded-full text-sm font-bold">
-                PASO 2
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-3 py-1 rounded-full text-sm font-bold">
+                  PASO 2
+                </div>
+                <h2 className="text-xl font-bold text-gray-800">
+                  Editor de Datos Inteligente
+                </h2>
               </div>
-              <h2 className="text-xl font-bold text-gray-800">
-                Editor de Datos Inteligente
-              </h2>
             </div>
             <ExcelViewer processedData={processedData} />
           </section>

@@ -72,6 +72,9 @@ export const ExcelViewer: React.FC<ExcelViewerProps> = ({ processedData }) => {
   });
   const [editingCell, setEditingCell] = useState<{ row: number; col: number } | null>(null);
   const tableRef = useRef<HTMLTableElement>(null);
+  
+  // Estado para rastrear cuántas facturas hemos procesado
+  const [processedCount, setProcessedCount] = useState(0);
   const [proveedores, setProveedores] = useState<Proveedor[]>([]);
   const [articulos, setArticulos] = useState<Articulo[]>([]);
   const [delegaciones, setDelegaciones] = useState<Delegacion[]>([]);
@@ -477,8 +480,13 @@ export const ExcelViewer: React.FC<ExcelViewerProps> = ({ processedData }) => {
 
   useEffect(() => {
     console.log('ExcelViewer recibió processedData:', processedData);
-    if (processedData && processedData.length > 0) {
-      const newRows = processedData.flatMap(invoice => {
+    
+    // Solo procesar las nuevas facturas que no hemos procesado aún
+    if (processedData && processedData.length > processedCount) {
+      const newInvoices = processedData.slice(processedCount);
+      console.log('🔄 Procesando nuevas facturas:', newInvoices.length);
+      
+      const newRows = newInvoices.flatMap(invoice => {
         // Manejar diferentes estructuras de datos
         const invoiceData = invoice.data || invoice;
         const items = invoiceData.items || invoiceData.data?.items || [];
@@ -529,139 +537,31 @@ export const ExcelViewer: React.FC<ExcelViewerProps> = ({ processedData }) => {
       });
       
       if (newRows.length > 0) {
-        // Añadir campos de cliente y delegación a cada fila
-        // Crear una fila por cada factura, evitando duplicaciones
-        const rowsWithClienteYDelegacion = processedData.flatMap((invoice, invoiceIndex) => {
-          // Manejar diferentes estructuras de datos
-          const invoiceData = invoice.data || invoice;
-          const items = invoiceData.items || invoiceData.data?.items || [];
-          
-          // Obtener el cliente directamente de processed_invoices
-          const cliente = invoiceData.cliente || invoiceData.data?.cliente || '';
-          const proveedor = invoiceData.proveedor || invoiceData.data?.proveedor || '';
-          const datosProveedor = buscarDatosProveedor(proveedor);
-          const delegacion = buscarDelegacion(cliente);
-          
-          // Obtener el nombre del archivo
-          const fileName = invoice.fileName || invoiceData.fileName || invoiceData.data?.fileName || 'Sin nombre';
-          
-          // Si no hay items o son pocos, crear solo una fila para esta factura
-          if (!Array.isArray(items) || items.length === 0) {
-            return [[
-              fileName,
-              proveedor,
-              datosProveedor.cif,
-              datosProveedor.codigo,
-              cliente,
-              delegacion,
-              '', // Cód. Artículo
-              '', // Subfamilia
-              '', // Descripción
-              0,  // Unidades
-              0,  // Precio Ud.
-              0,  // % Dto.
-              0,  // % IVA
-              0,  // Neto
-              0   // Importe
-            ]];
-          }
-          
-          // Si hay muchos items pero son todos iguales, limitar a máximo 3 filas
-          if (items.length > 3) {
-            // Verificar si todos los items son iguales (sin descripción o con la misma descripción)
-            const allSameItems = items.every((item, _, arr) => 
-              (!item.descripcion && !arr[0].descripcion) || 
-              (item.descripcion === arr[0].descripcion)
-            );
-            
-            if (allSameItems) {
-              // Mostrar solo el primer item
-              const item = items[0];
-              const datosArticulo = item.descripcion ? buscarDatosArticulo(item.descripcion) : { codigo: '', subfamilia: '', iva: 0 };
-              const unidades = item.unidades ?? 0;
-              const precioUd = item.precioUd ?? 0;
-              const dto = item.dto ?? 0;
-              const iva = datosArticulo.iva || item.iva || 0;
-              const netoCalc = item.neto ?? (unidades * precioUd * (1 - dto / 100));
-              const importe = netoCalc * (1 + iva / 100);
-              
-              return [[
-                fileName,
-                proveedor,
-                datosProveedor.cif,
-                datosProveedor.codigo,
-                cliente,
-                delegacion,
-                datosArticulo.codigo || item.codArticulo || '',
-                datosArticulo.subfamilia || '',
-                item.descripcion || '',
-                unidades,
-                precioUd,
-                dto,
-                iva,
-                netoCalc,
-                importe
-              ]];
-            }
-          }
-          
-          // Procesar normalmente si hay items diferentes
-          return items.map((item: InvoiceItem, itemIndex: number) => {
-            // Obtener la fila correspondiente de newRows
-            const rowIndex = invoiceIndex * items.length + itemIndex;
-            const row = rowIndex < newRows.length ? newRows[rowIndex] : [];
-            
-            if (!row.length) {
-              // Si no hay fila correspondiente, crear una nueva con la información básica
-              const datosArticulo = item.descripcion ? buscarDatosArticulo(item.descripcion) : { codigo: '', subfamilia: '', iva: 0 };
-              const unidades = item.unidades ?? 0;
-              const precioUd = item.precioUd ?? 0;
-              const dto = item.dto ?? 0;
-              const iva = datosArticulo.iva || item.iva || 0;
-              const netoCalc = item.neto ?? (unidades * precioUd * (1 - dto / 100));
-              const importe = netoCalc * (1 + iva / 100);
-              
-              return [
-                fileName,
-                proveedor,
-                datosProveedor.cif,
-                datosProveedor.codigo,
-                cliente,
-                delegacion,
-                datosArticulo.codigo || item.codArticulo || '',
-                datosArticulo.subfamilia || '',
-                item.descripcion || '',
-                unidades,
-                precioUd,
-                dto,
-                iva,
-                netoCalc,
-                importe
-              ];
-            }
-            
-            // Crear una nueva fila con los campos de cliente y delegación insertados en las posiciones 3 y 4
-            // Asegurarnos de que las columnas estén en el orden correcto
-            return [
-              row[0],              // Archivo
-              row[1],              // Proveedor
-              row[2],              // CIF
-              datosProveedor.codigo, // Cód. Proveedor (usar el valor del maestro)
-              cliente,              // Cliente
-              delegacion,           // Delegación
-              ...row.slice(6)       // Resto de campos (Cód. Artículo, Subfamilia, etc.)
-            ];
-          });
-        });
+        console.log('➕ Agregando nuevas filas al editor:', newRows.length);
         
-        const updatedRows = [...data.rows, ...rowsWithClienteYDelegacion];
-        setData(prev => ({
-          ...prev,
-          rows: updatedRows
+        // Agregar las nuevas filas a las existentes
+        setData(prevData => ({
+          ...prevData,
+          rows: [...prevData.rows, ...newRows]
         }));
+        
+        // Actualizar el contador de facturas procesadas
+        setProcessedCount(processedData.length);
       }
     }
-  }, [processedData, proveedores, delegaciones, loadingProveedores, loadingDelegaciones]);
+  }, [processedData, processedCount, loadingProveedores, loadingArticulos, loadingDelegaciones]);
+
+  // Efecto separado para limpiar cuando processedData se resetea
+  useEffect(() => {
+    if (processedData.length === 0) {
+      console.log('🧹 Limpiando editor - processedData vacío');
+      setData(prevData => ({
+        ...prevData,
+        rows: []
+      }));
+      setProcessedCount(0);
+    }
+  }, [processedData.length]);
 
   const handleCellEdit = (rowIndex: number, colIndex: number, value: string) => {
     const newRows = [...data.rows];

@@ -12,10 +12,10 @@ interface UploadedImage {
 }
 
 interface ImageUploaderProps {
-  onImagesProcessed: (data: any[]) => void;
+  onSingleImageProcessed?: (data: any) => void;
 }
 
-export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImagesProcessed }) => {
+export const ImageUploader: React.FC<ImageUploaderProps> = ({ onSingleImageProcessed }) => {
   const [images, setImages] = useState<UploadedImage[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processProgress, setProcessProgress] = useState(0);
@@ -87,11 +87,19 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImagesProcessed 
         console.log('Datos extraídos:', invoiceData);
 
         if (invoiceData) {
-          processedData.push({ 
+          const processedInvoice = { 
             data: { ...invoiceData, fileName: image.file.name },
             fileName: image.file.name,
             success: true 
-          });
+          };
+          
+          processedData.push(processedInvoice);
+          
+          // Enviar inmediatamente cada factura procesada al editor Excel
+          if (onSingleImageProcessed) {
+            console.log('🚀 Enviando factura individual al editor:', processedInvoice);
+            onSingleImageProcessed(processedInvoice);
+          }
         }
 
         setImages(prev => prev.map(img => 
@@ -111,9 +119,10 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImagesProcessed 
       }
     }
 
-    if (processedData.length > 0) {
-      onImagesProcessed(processedData);
-    }
+    // Ya no enviamos datos en lote al final, solo individualmente
+    // if (processedData.length > 0) {
+    //   onImagesProcessed(processedData);
+    // }
 
     // Resetear estados
     setTimeout(() => {
@@ -255,9 +264,14 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImagesProcessed 
                   <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
                 </div>
               </div>
-              <p className="text-xs text-slate-600 mt-3 text-center font-medium">
-                ✨ Procesando con GPT-4 Vision de alta precisión
-              </p>
+              <div className="flex justify-between items-center mt-3">
+                <p className="text-xs text-slate-600 font-medium">
+                  ✨ Procesando con GPT-4 Vision de alta precisión
+                </p>
+                <p className="text-xs text-emerald-600 font-semibold">
+                  📊 Agregando al editor en tiempo real
+                </p>
+              </div>
             </div>
           )}
 
