@@ -476,6 +476,7 @@ export const ExcelViewer: React.FC<ExcelViewerProps> = ({ processedData }) => {
   // La función calcularSumaCodProveedor ha sido eliminada
 
   useEffect(() => {
+    console.log('ExcelViewer recibió processedData:', processedData);
     if (processedData && processedData.length > 0) {
       const newRows = processedData.flatMap(invoice => {
         // Manejar diferentes estructuras de datos
@@ -719,11 +720,44 @@ export const ExcelViewer: React.FC<ExcelViewerProps> = ({ processedData }) => {
   };
 
   const exportToExcel = () => {
-    const ws = XLSX.utils.aoa_to_sheet([data.headers, ...data.rows]);
+    // Formato específico requerido por el usuario
+    const excelHeaders = [
+      'Proveedor', 'CIF', 'Cód. Proveedor', 'Cliente', 'Delegación', 
+      'Cód. Artículo', 'Subfamilia', 'Descripción', 'Unidades', 
+      'Precio Ud.', '% Dto.', '% IVA', 'Neto', 'Importe'
+    ];
+    
+    // Mapear los datos al formato específico
+    const excelRows = data.rows.map(row => {
+      // Crear un mapa de los datos de la fila
+      const rowData: { [key: string]: any } = {};
+      data.headers.forEach((header, index) => {
+        rowData[header] = row[index] || '';
+      });
+      
+      return [
+        rowData['Proveedor'] || '',
+        rowData['CIF'] || '',
+        rowData['Cód. Proveedor'] || '',
+        rowData['Cliente'] || '',
+        rowData['Delegación'] || '',
+        rowData['Cód. Artículo'] || '',
+        rowData['Subfamilia'] || '',
+        rowData['Descripción'] || '',
+        rowData['Unidades'] || 0,
+        rowData['Precio Ud.'] || 0,
+        rowData['% Dto.'] || 0,
+        rowData['% IVA'] || 0,
+        rowData['Neto'] || 0,
+        rowData['Importe'] || 0
+      ];
+    });
+    
+    const ws = XLSX.utils.aoa_to_sheet([excelHeaders, ...excelRows]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Facturas');
     
-    // Aplicar estilos básicos
+    // Aplicar estilos a los encabezados
     const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
     for (let C = range.s.c; C <= range.e.c; ++C) {
       const address = XLSX.utils.encode_col(C) + '1';
@@ -733,6 +767,24 @@ export const ExcelViewer: React.FC<ExcelViewerProps> = ({ processedData }) => {
         fill: { fgColor: { rgb: 'CCCCCC' } }
       };
     }
+    
+    // Ajustar ancho de columnas
+    ws['!cols'] = [
+      { wch: 20 }, // Proveedor
+      { wch: 12 }, // CIF
+      { wch: 12 }, // Cód. Proveedor
+      { wch: 15 }, // Cliente
+      { wch: 12 }, // Delegación
+      { wch: 12 }, // Cód. Artículo
+      { wch: 12 }, // Subfamilia
+      { wch: 25 }, // Descripción
+      { wch: 10 }, // Unidades
+      { wch: 10 }, // Precio Ud.
+      { wch: 8 },  // % Dto.
+      { wch: 8 },  // % IVA
+      { wch: 10 }, // Neto
+      { wch: 10 }  // Importe
+    ];
     
     XLSX.writeFile(wb, `facturas_${new Date().toISOString().split('T')[0]}.xlsx`);
   };

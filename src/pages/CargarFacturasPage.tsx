@@ -7,7 +7,12 @@ export function CargarFacturasPage() {
   const [processedData, setProcessedData] = useState<any[]>([]);
 
   const handleImagesProcessed = (data: any[]) => {
-    setProcessedData(prev => [...prev, ...data]);
+    console.log('Datos recibidos en CargarFacturasPage:', data);
+    setProcessedData(prev => {
+      const newData = [...prev, ...data];
+      console.log('processedData actualizado:', newData);
+      return newData;
+    });
   };
 
   return (

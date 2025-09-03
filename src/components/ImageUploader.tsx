@@ -64,13 +64,14 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImagesProcessed 
       ));
 
       try {
-        // Convertir archivo a base64 y enviar a Netlify Function
+        // Convertir archivo a base64 y crear data URL completo
         const base64 = await fileToBase64(image.file);
+        const dataUrl = `data:${image.file.type};base64,${base64}`;
 
-        const response = await fetch('/api/process-invoice', {
+        const response = await fetch('/.netlify/functions/process-invoice-new', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ imageBase64: base64, mimeType: image.file.type }),
+          body: JSON.stringify({ imageBase64: dataUrl, mimeType: image.file.type }),
         });
 
         if (!response.ok) {
@@ -78,15 +79,20 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImagesProcessed 
         }
 
         const result = await response.json();
-        const invoiceData = result.data;
+        console.log('Respuesta completa del backend:', result);
+        
+        // El backend devuelve { success: true, data: [invoiceData] }
+        const invoiceData = Array.isArray(result.data) ? result.data[0] : result.data;
         
         console.log('Datos extraídos:', invoiceData);
 
-        processedData.push({ 
-          data: { ...invoiceData, fileName: image.file.name },
-          fileName: image.file.name,
-          success: true 
-        });
+        if (invoiceData) {
+          processedData.push({ 
+            data: { ...invoiceData, fileName: image.file.name },
+            fileName: image.file.name,
+            success: true 
+          });
+        }
 
         setImages(prev => prev.map(img => 
           img.id === image.id 
