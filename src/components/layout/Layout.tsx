@@ -1,9 +1,10 @@
 import { NavLink, Outlet } from 'react-router-dom';
-import { Upload, Database, LogOut, FileText } from 'lucide-react';
+import { Upload, Database, LogOut, FileText, BarChart } from 'lucide-react';
 
 const navItems = [
   { name: 'Cargar Facturas', href: '/', icon: Upload },
   { name: 'Facturas Procesadas', href: '/facturas-procesadas', icon: FileText },
+  { name: 'Analítica', href: '/analitica', icon: BarChart },
   { name: 'Maestro de Datos', href: '/maestro-de-datos', icon: Database },
 ];
 

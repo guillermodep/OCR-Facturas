@@ -4,6 +4,7 @@ import { Layout } from './components/layout/Layout';
 import { CargarFacturasPage } from './pages/CargarFacturasPage';
 import { MaestroDeDatosPage } from './pages/MaestroDeDatos';
 import { FacturasProcesadasPage } from './pages/FacturasProcesadasPage';
+import { AnaliticaPage } from './pages/AnaliticaPage';
 import { LoginPage } from './pages/LoginPage';
 
 function App() {
@@ -44,6 +45,7 @@ function App() {
           <Route index element={<CargarFacturasPage />} />
           <Route path="maestro-de-datos" element={<MaestroDeDatosPage />} />
           <Route path="facturas-procesadas" element={<FacturasProcesadasPage />} />
+          <Route path="analitica" element={<AnaliticaPage />} />
         </Route>
       </Routes>
     </BrowserRouter>
