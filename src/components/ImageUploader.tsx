@@ -13,6 +13,7 @@ interface UploadedImage {
   preview: string;
   status: 'pending' | 'processing' | 'completed' | 'error';
   extractedData?: any;
+  processingTime?: number;
 }
 
 interface ImageUploaderProps {
@@ -24,8 +25,6 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onSingleImageProce
   const [isProcessing, setIsProcessing] = useState(false);
   const [processProgress, setProcessProgress] = useState(0);
   const [currentProcessingImage, setCurrentProcessingImage] = useState<string>('');
-  const [processingTimer, setProcessingTimer] = useState(0);
-  const [timerInterval, setTimerInterval] = useState<NodeJS.Timeout | null>(null);
   // No necesitamos estados para el modal ya que abriremos en nueva pestaña
 
   const handlePdfUpload = async (file: File) => {
@@ -112,24 +111,17 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onSingleImageProce
       setCurrentProcessingImage(image.file.name);
       setProcessProgress((processedCount / totalImages) * 100);
       
-      // Limpiar cualquier timer anterior antes de iniciar uno nuevo
-      if (timerInterval) {
-        clearInterval(timerInterval);
-        setTimerInterval(null);
-      }
-      
-      // Iniciar timer para esta imagen
-      setProcessingTimer(0);
-      let seconds = 0;
-      const interval = setInterval(() => {
-        seconds++;
-        setProcessingTimer(seconds);
-      }, 1000); // Actualizar cada 1 segundo exacto
-      setTimerInterval(interval);
-      
       setImages(prev => prev.map(img => 
-        img.id === image.id ? { ...img, status: 'processing' } : img
+        img.id === image.id ? { ...img, status: 'processing', processingTime: 0 } : img
       ));
+
+      const timer = setInterval(() => {
+        setImages(prev => prev.map(img => 
+          img.id === image.id 
+            ? { ...img, processingTime: (img.processingTime || 0) + 1 } 
+            : img
+        ));
+      }, 1000);
 
       try {
         // Convertir archivo a base64 y crear data URL completo
@@ -185,11 +177,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onSingleImageProce
         ));
         processedCount++;
       } finally {
-        // Limpiar timer al finalizar procesamiento de esta imagen
-        if (timerInterval) {
-          clearInterval(timerInterval);
-          setTimerInterval(null);
-        }
+        clearInterval(timer); 
       }
     }
 
@@ -203,7 +191,6 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onSingleImageProce
       setIsProcessing(false);
       setProcessProgress(100);
       setCurrentProcessingImage('');
-      setProcessingTimer(0);
       setIsProcessing(false);
     }, 500);
   };
@@ -323,12 +310,6 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onSingleImageProce
                 <span className="text-blue-800 font-medium">
                   Procesando: {currentProcessingImage}
                 </span>
-                <div className="ml-auto flex items-center gap-2 bg-blue-100 px-3 py-1 rounded-full">
-                  <span className="text-blue-600 text-lg">⏱️</span>
-                  <span className="text-blue-800 font-mono font-bold">
-                    {processingTimer}s
-                  </span>
-                </div>
               </div>
               <div className="w-full bg-blue-200 rounded-full h-2">
                 <div 
@@ -389,9 +370,17 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onSingleImageProce
                     
                     {/* Status Overlays */}
                     {image.status === 'processing' && (
-                      <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/80 to-purple-600/80 backdrop-blur-sm flex flex-col items-center justify-center">
-                        <Loader2 className="h-10 w-10 text-white animate-spin mb-2" />
-                        <span className="text-white text-xs font-medium">Analizando...</span>
+                      <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/80 to-purple-600/80 backdrop-blur-sm flex flex-col items-center justify-center p-2">
+                        <Loader2 className="h-8 w-8 text-white animate-spin" />
+                        <span className="text-white text-xs font-medium mt-2">Analizando...</span>
+                        {image.processingTime !== undefined && (
+                          <div className="mt-2 flex items-center gap-1 bg-black/20 px-2 py-0.5 rounded-full">
+                            <span className="text-white text-xs">⏱️</span>
+                            <span className="text-white font-mono text-xs font-bold">
+                              {image.processingTime}s
+                            </span>
+                          </div>
+                        )}
                       </div>
                     )}
                     
