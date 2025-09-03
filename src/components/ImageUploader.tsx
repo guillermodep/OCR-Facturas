@@ -2,6 +2,10 @@ import React, { useCallback, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Upload, X, FileImage, Loader2, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button.tsx';
+import * as pdfjs from 'pdfjs-dist';
+
+// Set up the worker for pdf.js. This is crucial for it to work in a Vite environment.
+pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.mjs`;
 
 interface UploadedImage {
   id: string;
@@ -24,14 +28,61 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onSingleImageProce
   const [timerInterval, setTimerInterval] = useState<NodeJS.Timeout | null>(null);
   // No necesitamos estados para el modal ya que abriremos en nueva pestaña
 
-  const onDrop = useCallback((acceptedFiles: File[]) => {
-    const newImages = acceptedFiles.map(file => ({
+  const handlePdfUpload = async (file: File) => {
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+        if (event.target?.result) {
+            const pdfData = new Uint8Array(event.target.result as ArrayBuffer);
+            const pdf = await pdfjs.getDocument({ data: pdfData }).promise;
+            const newImagesFromPdf: UploadedImage[] = [];
+
+            for (let i = 1; i <= pdf.numPages; i++) {
+                const page = await pdf.getPage(i);
+                const viewport = page.getViewport({ scale: 1.5 });
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+
+                if (context) {
+                    await page.render({ canvas: canvas, viewport: viewport }).promise;
+                    const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.95));
+                    
+                    if (blob) {
+                      const newFile = new File([blob], `${file.name.replace('.pdf', '')}-page-${i}.jpg`, { type: 'image/jpeg' });
+
+                      newImagesFromPdf.push({
+                          id: Math.random().toString(36).substr(2, 9),
+                          file: newFile,
+                          preview: URL.createObjectURL(newFile),
+                          status: 'pending' as const,
+                      });
+                    }
+                }
+            }
+            setImages(prev => [...prev, ...newImagesFromPdf]);
+        }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  const onDrop = useCallback(async (acceptedFiles: File[]) => {
+    const imageFiles = acceptedFiles.filter(file => file.type.startsWith('image/'));
+    const pdfFiles = acceptedFiles.filter(file => file.type === 'application/pdf');
+
+    // Handle image files
+    const newImages = imageFiles.map(file => ({
       id: Math.random().toString(36).substr(2, 9),
       file,
       preview: URL.createObjectURL(file),
       status: 'pending' as const,
     }));
     setImages(prev => [...prev, ...newImages]);
+
+    // Handle PDF files by converting them
+    for (const pdfFile of pdfFiles) {
+      await handlePdfUpload(pdfFile);
+    }
   }, []);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({

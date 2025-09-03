@@ -24,6 +24,7 @@
     "jsdom": "^26.1.0",
     "lucide-react": "^0.540.0",
     "openai": "^5.12.2",
+    "pdfjs-dist": "^5.4.149",
     "pdfkit": "^0.17.2",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",

@@ -4,6 +4,9 @@ import path from 'path'
 
 // https://vite.dev/config/
 export default defineConfig({
+  optimizeDeps: {
+    include: ['pdfjs-dist'],
+  },
   plugins: [react()],
   resolve: {
     alias: {
@@ -17,5 +20,8 @@ export default defineConfig({
         changeOrigin: true,
       },
     },
+  },
+  build: {
+    chunkSizeWarningLimit: 1000, // Aumentar límite para chunks más grandes
   },
 })
