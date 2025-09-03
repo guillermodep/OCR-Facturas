@@ -42,6 +42,7 @@ export function FacturasProcesadasPage() {
     if (!texto) return '';
     return texto
       .toLowerCase()
+      .replace(/\s+y\s+|\s*&\s*/g, ' ')
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
       .replace(/[^\w\s]/g, '')
@@ -49,10 +50,6 @@ export function FacturasProcesadasPage() {
       .trim();
   };
 
-  const extraerInfoParentesis = (texto: string): string[] => {
-    const matches = texto.match(/\(([^)]+)\)/g);
-    return matches ? matches.map(match => match.replace(/[()]/g, '').trim()) : [];
-  };
 
   const corregirErroresTipograficos = (texto: string): string => {
     if (!texto) return '';
@@ -60,7 +57,9 @@ export function FacturasProcesadasPage() {
       .replace(/\btercer\b/gi, 'tercera')
       .replace(/\beztrella\b/gi, 'estrella')
       .replace(/\bmarangos\b/gi, 'marangos')
-      .replace(/\bpedregalejo\b/gi, 'pedregalejo');
+      .replace(/\bpedregalejo\b/gi, 'pedregalejo')
+      .replace(/\bagliano\b/gi, 'aglianon')
+      .replace(/\bua\b/gi, 'va');
   };
 
   const calcularSimilitud = (texto1: string, texto2: string): number => {
@@ -103,45 +102,71 @@ export function FacturasProcesadasPage() {
 
   const buscarDatosProveedor = (nombreProveedor: string): {codigo: string, cif: string} => {
     if (!nombreProveedor || loadingMaestros) return { codigo: '', cif: '' };
-    const nombreCorregido = corregirErroresTipograficos(nombreProveedor);
+
+    // Regla específica para JOPIAD
+    if (nombreProveedor.toLowerCase().includes('jopiad')) {
+      const jopiadMaster = proveedores.find(p => p.nombre === 'JOSE PEDROSA - JOPIAD');
+      if (jopiadMaster) {
+        return { codigo: jopiadMaster.codigo || '', cif: jopiadMaster.cif || '' };
+      }
+    }
+
+    const nombreSinParentesis = nombreProveedor.replace(/\s*\([^)]*\)\s*/g, ' ').trim();
+    const nombreCorregido = corregirErroresTipograficos(nombreSinParentesis);
     const nombreLimpio = limpiarSufijosEmpresas(nombreCorregido);
     const nombreNormalizado = normalizarTexto(nombreLimpio);
+
+    // 1. Búsqueda por inclusión directa (la más fiable)
+    for (const proveedor of proveedores) {
+      if (!proveedor.nombre) continue;
+      const nombreProveedorNormalizado = normalizarTexto(limpiarSufijosEmpresas(corregirErroresTipograficos(proveedor.nombre)));
+      if (nombreProveedorNormalizado.includes(nombreNormalizado)) {
+        return { codigo: proveedor.codigo || '', cif: proveedor.cif || '' };
+      }
+    }
+
+    // 2. Si falla, recurrir a similitud
     let mejorCoincidencia = null;
     let mejorPuntuacion = 0;
     for (const proveedor of proveedores) {
       if (!proveedor.nombre) continue;
-      const nombreProveedorCorregido = corregirErroresTipograficos(proveedor.nombre);
-      const nombreProveedorLimpio = limpiarSufijosEmpresas(nombreProveedorCorregido);
-      const nombreProveedorNormalizado = normalizarTexto(nombreProveedorLimpio);
-      if (nombreProveedorNormalizado === nombreNormalizado) {
-        return { codigo: proveedor.codigo || '', cif: proveedor.cif || '' };
-      }
+      const nombreProveedorNormalizado = normalizarTexto(limpiarSufijosEmpresas(corregirErroresTipograficos(proveedor.nombre)));
       const similitud = calcularSimilitud(nombreNormalizado, nombreProveedorNormalizado);
       if (similitud > mejorPuntuacion) {
         mejorPuntuacion = similitud;
         mejorCoincidencia = proveedor;
       }
     }
-    return mejorPuntuacion > 60 && mejorCoincidencia ? { codigo: mejorCoincidencia.codigo || '', cif: mejorCoincidencia.cif || '' } : { codigo: '', cif: '' };
+
+    return mejorPuntuacion > 60 && mejorCoincidencia 
+      ? { codigo: mejorCoincidencia.codigo || '', cif: mejorCoincidencia.cif || '' } 
+      : { codigo: '', cif: '' };
   };
 
   const buscarDelegacion = (nombreCliente: string): string => {
     if (!nombreCliente || loadingMaestros) return '';
-    const nombreCorregido = corregirErroresTipograficos(nombreCliente);
-    const nombreConSufijosNormalizados = normalizarSufijosLegales(nombreCorregido);
-    const nombreLimpio = limpiarSufijosEmpresas(nombreConSufijosNormalizados);
-    const nombreNormalizado = normalizarTexto(nombreLimpio);
+
+    const normalizarNombreCompleto = (nombre: string) => {
+      if (!nombre) return '';
+      const corregido = corregirErroresTipograficos(nombre);
+      const conSufijos = normalizarSufijosLegales(corregido);
+      const limpio = limpiarSufijosEmpresas(conSufijos);
+      return normalizarTexto(limpio);
+    };
+
+    const nombreNormalizado = normalizarNombreCompleto(nombreCliente);
     let mejorCoincidencia = '';
     let mejorPuntuacion = 0;
+
     for (const delegacion of delegaciones) {
       let puntuacionTotal = 0;
       if (delegacion.razon_social) {
-        const razonSocialNormalizada = normalizarTexto(normalizarSufijosLegales(corregirErroresTipograficos(delegacion.razon_social)));
+        const razonSocialNormalizada = normalizarNombreCompleto(delegacion.razon_social);
         if (razonSocialNormalizada === nombreNormalizado) return delegacion.delegacion || delegacion.codigo || '';
         puntuacionTotal += calcularSimilitud(nombreNormalizado, razonSocialNormalizada);
       }
       if (delegacion.nombre_comercial || delegacion.cliente) {
-        const nombreComercialNormalizado = normalizarTexto(corregirErroresTipograficos(delegacion.nombre_comercial || delegacion.cliente));
+        const nombreComercialNormalizado = normalizarNombreCompleto(delegacion.nombre_comercial || delegacion.cliente);
         if (nombreComercialNormalizado === nombreNormalizado) return delegacion.delegacion || delegacion.codigo || '';
         puntuacionTotal += calcularSimilitud(nombreNormalizado, nombreComercialNormalizado) * 0.9;
       }
