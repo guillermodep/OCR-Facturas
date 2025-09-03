@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { Upload, X, FileImage, Loader2, ExternalLink } from 'lucide-react';
+import { Upload, X, FileImage, Loader2, ExternalLink, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button.tsx';
 import * as pdfjs from 'pdfjs-dist';
 
@@ -25,7 +25,6 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onSingleImageProce
   const [isProcessing, setIsProcessing] = useState(false);
   const [processProgress, setProcessProgress] = useState(0);
   const [currentProcessingImage, setCurrentProcessingImage] = useState<string>('');
-  // No necesitamos estados para el modal ya que abriremos en nueva pestaña
 
   const handlePdfUpload = async (file: File) => {
     const reader = new FileReader();
@@ -69,7 +68,6 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onSingleImageProce
     const imageFiles = acceptedFiles.filter(file => file.type.startsWith('image/'));
     const pdfFiles = acceptedFiles.filter(file => file.type === 'application/pdf');
 
-    // Handle image files
     const newImages = imageFiles.map(file => ({
       id: Math.random().toString(36).substr(2, 9),
       file,
@@ -78,7 +76,6 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onSingleImageProce
     }));
     setImages(prev => [...prev, ...newImages]);
 
-    // Handle PDF files by converting them
     for (const pdfFile of pdfFiles) {
       await handlePdfUpload(pdfFile);
     }
@@ -97,118 +94,110 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onSingleImageProce
     setImages(prev => prev.filter(img => img.id !== id));
   };
 
+  const processSingleImage = async (image: UploadedImage) => {
+    setImages(prev => prev.map(img => 
+      img.id === image.id ? { ...img, status: 'processing', processingTime: 0 } : img
+    ));
+
+    const timer = setInterval(() => {
+      setImages(prev => prev.map(img => 
+        img.id === image.id && img.status === 'processing'
+          ? { ...img, processingTime: (img.processingTime || 0) + 1 } 
+          : img
+      ));
+    }, 1000);
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 segundos de timeout
+
+    try {
+      const base64 = await fileToBase64(image.file);
+      const dataUrl = `data:${image.file.type};base64,${base64}`;
+
+      const response = await fetch('/.netlify/functions/process-invoice-new', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageBase64: dataUrl, mimeType: image.file.type }),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error('Error processing image');
+      }
+
+      const result = await response.json();
+      const invoiceData = Array.isArray(result.data) ? result.data[0] : result.data;
+
+      if (invoiceData) {
+        const processedInvoice = { 
+          data: { ...invoiceData, fileName: image.file.name },
+          fileName: image.file.name,
+          success: true 
+        };
+        if (onSingleImageProcessed) {
+          onSingleImageProcessed(processedInvoice);
+        }
+      }
+
+      setImages(prev => prev.map(img => 
+        img.id === image.id 
+          ? { ...img, status: 'completed', extractedData: invoiceData } 
+          : img
+      ));
+    } catch (error) {
+      console.error('Error processing image:', error);
+      clearTimeout(timeoutId);
+      setImages(prev => prev.map(img => 
+        img.id === image.id ? { ...img, status: 'error' } : img
+      ));
+    } finally {
+      clearInterval(timer);
+    }
+  };
+
+  const reprocessImage = (id: string) => {
+    const imageToReprocess = images.find(img => img.id === id);
+    if (imageToReprocess) {
+      processSingleImage(imageToReprocess);
+    }
+  };
+
   const processImages = async () => {
     setIsProcessing(true);
     setProcessProgress(0);
-    const processedData = [];
     
-    // Calcular imágenes pendientes
-    const pendingImages = images.filter(img => img.status !== 'completed');
+    const pendingImages = images.filter(img => img.status === 'pending');
     const totalImages = pendingImages.length;
     let processedCount = 0;
 
     for (const image of pendingImages) {
       setCurrentProcessingImage(image.file.name);
+      await processSingleImage(image);
+      processedCount++;
       setProcessProgress((processedCount / totalImages) * 100);
-      
-      setImages(prev => prev.map(img => 
-        img.id === image.id ? { ...img, status: 'processing', processingTime: 0 } : img
-      ));
-
-      const timer = setInterval(() => {
-        setImages(prev => prev.map(img => 
-          img.id === image.id 
-            ? { ...img, processingTime: (img.processingTime || 0) + 1 } 
-            : img
-        ));
-      }, 1000);
-
-      try {
-        // Convertir archivo a base64 y crear data URL completo
-        const base64 = await fileToBase64(image.file);
-        const dataUrl = `data:${image.file.type};base64,${base64}`;
-
-        const response = await fetch('/.netlify/functions/process-invoice-new', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ imageBase64: dataUrl, mimeType: image.file.type }),
-        });
-
-        if (!response.ok) {
-          throw new Error('Error processing image');
-        }
-
-        const result = await response.json();
-        console.log('Respuesta completa del backend:', result);
-        
-        // El backend devuelve { success: true, data: [invoiceData] }
-        const invoiceData = Array.isArray(result.data) ? result.data[0] : result.data;
-        
-        console.log('Datos extraídos:', invoiceData);
-
-        if (invoiceData) {
-          const processedInvoice = { 
-            data: { ...invoiceData, fileName: image.file.name },
-            fileName: image.file.name,
-            success: true 
-          };
-          
-          processedData.push(processedInvoice);
-          
-          // Enviar inmediatamente cada factura procesada al editor Excel
-          if (onSingleImageProcessed) {
-            console.log('🚀 Enviando factura individual al editor:', processedInvoice);
-            onSingleImageProcessed(processedInvoice);
-          }
-        }
-
-        setImages(prev => prev.map(img => 
-          img.id === image.id 
-            ? { ...img, status: 'completed', extractedData: invoiceData } 
-            : img
-        ));
-        
-        processedCount++;
-        setProcessProgress((processedCount / totalImages) * 100);
-      } catch (error) {
-        console.error('Error processing image:', error);
-        setImages(prev => prev.map(img => 
-          img.id === image.id ? { ...img, status: 'error' } : img
-        ));
-        processedCount++;
-      } finally {
-        clearInterval(timer); 
-      }
     }
 
-    // Ya no enviamos datos en lote al final, solo individualmente
-    // if (processedData.length > 0) {
-    //   onImagesProcessed(processedData);
-    // }
-
-    // Resetear estados
     setTimeout(() => {
       setIsProcessing(false);
       setProcessProgress(100);
       setCurrentProcessingImage('');
-      setIsProcessing(false);
     }, 500);
   };
 
-  // Helper: archivo a base64 (sin prefijo data:)
   const fileToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => {
         const result = reader.result as string;
-        const b64 = result.split(',')[1] || result; // manejar dataURL o binario
+        const b64 = result.split(',')[1] || result;
         resolve(b64);
       };
       reader.onerror = reject;
       reader.readAsDataURL(file);
     });
   };
-
 
   return (
     <div className="w-full">
@@ -223,7 +212,6 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onSingleImageProce
         >
           <input {...getInputProps()} />
           
-          {/* Animated Background Pattern */}
           <div className="absolute inset-0 opacity-5">
             <div className="absolute inset-0" style={{
               backgroundImage: `radial-gradient(circle at 2px 2px, indigo 1px, transparent 1px)`,
@@ -231,7 +219,6 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onSingleImageProce
             }}></div>
           </div>
           
-          {/* Floating Orbs */}
           {!isDragActive && (
             <>
               <div className="absolute top-10 left-10 w-24 h-24 bg-gradient-to-br from-indigo-400 to-purple-400 rounded-full blur-3xl opacity-20 animate-pulse"></div>
@@ -269,7 +256,6 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onSingleImageProce
         </div>
       </div>
 
-      {/* Images Section */}
       {images.length > 0 && (
         <div className="mt-8 p-8 bg-gradient-to-br from-slate-50 via-white to-slate-50 rounded-3xl shadow-2xl border border-slate-200/50 backdrop-blur-xl">
           <div className="flex justify-between items-center mb-6">
@@ -285,7 +271,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onSingleImageProce
             </div>
             <Button 
               onClick={processImages}
-              disabled={isProcessing || images.every(img => img.status === 'completed')}
+              disabled={isProcessing || images.every(img => img.status !== 'pending')}
               className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold px-6 py-3 rounded-full shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-300"
             >
               {isProcessing ? (
@@ -302,7 +288,6 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onSingleImageProce
             </Button>
           </div>
 
-          {/* Progress Bar */}
           {isProcessing && (
             <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
               <div className="flex items-center gap-3 mb-3">
@@ -347,18 +332,15 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onSingleImageProce
                         className="w-full h-full object-cover cursor-pointer"
                         onClick={(e) => {
                           e.stopPropagation();
-                          // Abrir la imagen en una nueva pestaña
                           window.open(image.preview, '_blank');
                         }}
                       />
                     )}
                     
-                    {/* Botón de vista previa para imágenes */}
                     {image.file.type !== 'application/pdf' && (
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          // Abrir la imagen en una nueva pestaña
                           window.open(image.preview, '_blank');
                         }}
                         className="absolute bottom-2 right-2 bg-white/80 hover:bg-white rounded-full p-2 shadow-lg transition-all transform hover:scale-110 z-10"
@@ -368,7 +350,6 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onSingleImageProce
                       </button>
                     )}
                     
-                    {/* Status Overlays */}
                     {image.status === 'processing' && (
                       <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/80 to-purple-600/80 backdrop-blur-sm flex flex-col items-center justify-center p-2">
                         <Loader2 className="h-8 w-8 text-white animate-spin" />
@@ -385,24 +366,43 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onSingleImageProce
                     )}
                     
                     {image.status === 'completed' && (
-                      <div className="absolute inset-0 bg-gradient-to-br from-green-500/20 to-emerald-500/20 flex items-center justify-center backdrop-blur-[2px]">
+                      <div className="absolute inset-0 bg-gradient-to-br from-green-500/20 to-emerald-500/20 flex flex-col items-center justify-center backdrop-blur-[2px] p-2">
                         <div className="bg-gradient-to-br from-green-500 to-emerald-600 text-white rounded-full p-3 shadow-2xl">
                           <svg className="h-8 w-8" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                           </svg>
                         </div>
+                        {image.processingTime !== undefined && (
+                          <div className="mt-2 flex items-center gap-1 bg-black/20 px-2 py-0.5 rounded-full">
+                            <span className="text-white text-xs">⏱️</span>
+                            <span className="text-white font-mono text-xs font-bold">
+                              {image.processingTime}s
+                            </span>
+                          </div>
+                        )}
                       </div>
                     )}
                     
                     {image.status === 'error' && (
-                      <div className="absolute inset-0 bg-gradient-to-br from-red-500/20 to-rose-500/20 flex items-center justify-center backdrop-blur-[2px]">
+                      <div className="absolute inset-0 bg-gradient-to-br from-red-500/20 to-rose-500/20 flex flex-col items-center justify-center backdrop-blur-[2px] p-2">
                         <div className="bg-gradient-to-br from-red-500 to-rose-600 text-white rounded-full p-3 shadow-2xl">
                           <X className="h-8 w-8" />
                         </div>
+                        {image.processingTime !== undefined && (
+                          <div className="mt-2 flex items-center gap-1 bg-black/20 px-2 py-0.5 rounded-full">
+                            <span className="text-white text-xs">⏱️</span>
+                            <span className="text-white font-mono text-xs font-bold">
+                              {image.processingTime}s
+                            </span>
+                          </div>
+                        )}
+                        <Button onClick={() => reprocessImage(image.id)} size="sm" className="mt-2 bg-white/80 text-black hover:bg-white"> 
+                          <RefreshCw className="h-4 w-4 mr-1"/>
+                          Reprocesar
+                        </Button>
                       </div>
                     )}
                     
-                    {/* Delete Button */}
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -415,7 +415,6 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onSingleImageProce
                     </button>
                   </div>
                   
-                  {/* File Info */}
                   <div className="p-3 bg-white">
                     <p className="text-xs font-medium text-slate-700 truncate">{image.file.name}</p>
                     <div className="flex justify-between items-center mt-1">
@@ -437,6 +436,11 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onSingleImageProce
                           Procesando
                         </span>
                       )}
+                       {image.status === 'error' && (
+                        <span className="text-[10px] font-medium text-red-600 bg-red-50 px-2 py-0.5 rounded-full">
+                          Error
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -446,7 +450,6 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onSingleImageProce
         </div>
       )}
       
-      {/* Ya no necesitamos el modal para mostrar la imagen */}
     </div>
   );
 };
