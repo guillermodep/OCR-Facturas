@@ -2,22 +2,17 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Users, UserPlus, Edit, Trash2, Shield, ShieldCheck } from 'lucide-react';
+import { Users, UserPlus, Edit, Trash2, Shield } from 'lucide-react';
 
 interface User {
   id: string;
-  email: string;
   username: string;
-  role: 'admin' | 'user';
-  created_at: string;
-  last_login?: string;
+  password: string;
 }
 
 interface UserFormData {
-  email: string;
   username: string;
   password: string;
-  role: 'admin' | 'user';
 }
 
 export function GestionUsuariosPage() {
@@ -27,14 +22,9 @@ export function GestionUsuariosPage() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [formData, setFormData] = useState<UserFormData>({
-    email: '',
     username: '',
-    password: '',
-    role: 'user'
+    password: ''
   });
-
-  // Verificar si el usuario actual es administrador
-  const [currentUserRole, setCurrentUserRole] = useState<'admin' | 'user' | null>(null);
 
   useEffect(() => {
     checkUserRole();
@@ -42,14 +32,9 @@ export function GestionUsuariosPage() {
   }, []);
 
   const checkUserRole = () => {
-    // Obtener el username del sessionStorage (mismo método que usa el sistema de login)
     const username = sessionStorage.getItem('username');
-    
-    // Verificar si es el usuario admin
-    if (username === 'admin') {
-      setCurrentUserRole('admin');
-    } else {
-      setCurrentUserRole('user');
+    if (username !== 'admin') {
+      setError('Acceso denegado. Solo el administrador puede acceder a esta sección.');
     }
   };
 
@@ -59,7 +44,7 @@ export function GestionUsuariosPage() {
       const { data, error } = await supabase
         .from('users')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('id', { ascending: true });
 
       if (error) throw error;
       setUsers(data || []);
@@ -75,16 +60,12 @@ export function GestionUsuariosPage() {
     try {
       setError(null);
 
-      // Crear usuario en la tabla local users
       const { error: userError } = await supabase
         .from('users')
         .insert([
           {
             username: formData.username,
             password: formData.password,
-            role: formData.role,
-            email: formData.email,
-            created_at: new Date().toISOString(),
           }
         ]);
 
@@ -109,8 +90,7 @@ export function GestionUsuariosPage() {
         .from('users')
         .update({
           username: formData.username,
-          role: formData.role,
-          email: formData.email,
+          password: formData.password,
         })
         .eq('id', editingUser.id);
 
@@ -128,13 +108,11 @@ export function GestionUsuariosPage() {
     try {
       setError(null);
 
-      // Verificar si el usuario es admin
       if (username === 'admin') {
         setError('No se puede eliminar al usuario administrador del sistema.');
         return;
       }
 
-      // Eliminar de tabla users
       const { error: userError } = await supabase
         .from('users')
         .delete()
@@ -150,30 +128,29 @@ export function GestionUsuariosPage() {
 
   const resetForm = () => {
     setFormData({
-      email: '',
       username: '',
-      password: '',
-      role: 'user'
+      password: ''
     });
   };
 
   const openEditDialog = (user: User) => {
     setEditingUser(user);
     setFormData({
-      email: user.email,
       username: user.username,
-      password: '', // No mostrar contraseña existente
-      role: user.role
+      password: user.password
     });
   };
 
-  if (currentUserRole !== 'admin') {
+  const currentUsername = sessionStorage.getItem('username');
+  const isAdmin = currentUsername === 'admin';
+
+  if (!isAdmin) {
     return (
       <div className="flex justify-center items-center h-screen">
         <div className="text-center">
           <Shield className="mx-auto h-16 w-16 text-red-500 mb-4" />
           <h1 className="text-2xl font-bold text-gray-800 mb-2">Acceso Denegado</h1>
-          <p className="text-gray-600">Solo los administradores pueden acceder a esta sección.</p>
+          <p className="text-gray-600">Solo el administrador puede acceder a esta sección.</p>
         </div>
       </div>
     );
@@ -197,28 +174,18 @@ export function GestionUsuariosPage() {
               Nuevo Usuario
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="bg-white border border-gray-200 shadow-lg">
             <DialogHeader>
-              <DialogTitle>Crear Nuevo Usuario</DialogTitle>
+              <DialogTitle className="text-gray-900 font-semibold">Crear Nuevo Usuario</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleCreateUser} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({...formData, email: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  required
-                />
-              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nombre de Usuario</label>
                 <input
                   type="text"
                   value={formData.username}
                   onChange={(e) => setFormData({...formData, username: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-900"
                   required
                 />
               </div>
@@ -228,27 +195,16 @@ export function GestionUsuariosPage() {
                   type="password"
                   value={formData.password}
                   onChange={(e) => setFormData({...formData, password: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-900"
                   required
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Rol</label>
-                <select
-                  value={formData.role}
-                  onChange={(e) => setFormData({...formData, role: e.target.value as 'admin' | 'user'})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="user">Usuario</option>
-                  <option value="admin">Administrador</option>
-                </select>
-              </div>
-              {error && <p className="text-red-500 text-sm">{error}</p>}
+              {error && <p className="text-red-500 text-sm bg-red-50 p-2 rounded border border-red-200">{error}</p>}
               <div className="flex justify-end space-x-2">
-                <Button type="button" variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+                <Button type="button" variant="outline" onClick={() => setIsCreateDialogOpen(false)} className="bg-gray-100 text-gray-700 hover:bg-gray-200">
                   Cancelar
                 </Button>
-                <Button type="submit">Crear Usuario</Button>
+                <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white">Crear Usuario</Button>
               </div>
             </form>
           </DialogContent>
@@ -266,10 +222,7 @@ export function GestionUsuariosPage() {
           <thead className="bg-gray-50">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Usuario</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rol</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Creado</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Último Login</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
             </tr>
           </thead>
@@ -287,35 +240,16 @@ export function GestionUsuariosPage() {
                     </div>
                     <div className="ml-4">
                       <div className="text-sm font-medium text-gray-900">{user.username}</div>
+                      {user.username === 'admin' && (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                          <Shield className="mr-1 h-3 w-3" />
+                          Administrador
+                        </span>
+                      )}
                     </div>
                   </div>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{user.email}</td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    user.role === 'admin'
-                      ? 'bg-purple-100 text-purple-800'
-                      : 'bg-green-100 text-green-800'
-                  }`}>
-                    {user.role === 'admin' ? (
-                      <>
-                        <ShieldCheck className="mr-1 h-3 w-3" />
-                        Administrador
-                      </>
-                    ) : (
-                      <>
-                        <Shield className="mr-1 h-3 w-3" />
-                        Usuario
-                      </>
-                    )}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {new Date(user.created_at).toLocaleDateString()}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {user.last_login ? new Date(user.last_login).toLocaleDateString() : 'Nunca'}
-                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.id}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                   <div className="flex space-x-2">
                     <Button
@@ -350,47 +284,37 @@ export function GestionUsuariosPage() {
       {/* Modal de edición */}
       {editingUser && (
         <Dialog open={!!editingUser} onOpenChange={() => setEditingUser(null)}>
-          <DialogContent>
+          <DialogContent className="bg-white border border-gray-200 shadow-lg">
             <DialogHeader>
-              <DialogTitle>Editar Usuario</DialogTitle>
+              <DialogTitle className="text-gray-900 font-semibold">Editar Usuario</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleUpdateUser} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                <input
-                  type="email"
-                  value={formData.email}
-                  disabled
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100"
-                />
-              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nombre de Usuario</label>
                 <input
                   type="text"
                   value={formData.username}
                   onChange={(e) => setFormData({...formData, username: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-900"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Rol</label>
-                <select
-                  value={formData.role}
-                  onChange={(e) => setFormData({...formData, role: e.target.value as 'admin' | 'user'})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="user">Usuario</option>
-                  <option value="admin">Administrador</option>
-                </select>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
+                <input
+                  type="password"
+                  value={formData.password}
+                  onChange={(e) => setFormData({...formData, password: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-900"
+                  required
+                />
               </div>
-              {error && <p className="text-red-500 text-sm">{error}</p>}
+              {error && <p className="text-red-500 text-sm bg-red-50 p-2 rounded border border-red-200">{error}</p>}
               <div className="flex justify-end space-x-2">
-                <Button type="button" variant="outline" onClick={() => setEditingUser(null)}>
+                <Button type="button" variant="outline" onClick={() => setEditingUser(null)} className="bg-gray-100 text-gray-700 hover:bg-gray-200">
                   Cancelar
                 </Button>
-                <Button type="submit">Actualizar Usuario</Button>
+                <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white">Actualizar Usuario</Button>
               </div>
             </form>
           </DialogContent>
