@@ -661,37 +661,50 @@ export function FacturasProcesadasPage() {
     }
   };
 
-  useEffect(() => {
-    // Verificar permisos del usuario actual al cargar la página
-    const username = sessionStorage.getItem('username');
-    const isAdminUser = username === 'admin';
-    
-    setCurrentUsername(username || '');
-    setIsAdmin(isAdminUser);
-    
-    console.log('🔐 Permisos inicializados:', { username, isAdmin: isAdminUser });
-    
-    fetchInvoices();
-    fetchMaestros();
-  }, []);
-    const fetchMaestros = async () => {
-      try {
-        setLoadingMaestros(true);
-        
-        const { data: proveedoresData } = await supabase.from('proveedores').select('*');
-        const { data: articulosData } = await supabase.from('articulos').select('*');
-        const { data: delegacionesData } = await supabase.from('delegaciones').select('*');
-        
-        setProveedores(proveedoresData || []);
-        setArticulos(articulosData || []);
-        setDelegaciones(delegacionesData || []);
-      } catch (err: any) {
-        console.error('Error cargando datos maestros:', err);
-      } finally {
-        setLoadingMaestros(false);
+  const fetchInvoices = async () => {
+    try {
+      setLoading(true);
+      
+      let query = supabase.from('processed_invoices').select('*').order('created_at', { ascending: false });
+      
+      // Si no es admin, filtrar por usuario actual
+      if (!isAdmin && currentUsername) {
+        query = query.eq('usuario', currentUsername);
+        console.log('🔍 Filtrando facturas para usuario:', currentUsername);
+      } else if (isAdmin) {
+        console.log('👑 Usuario admin - mostrando todas las facturas');
       }
-    };
+      
+      const { data, error } = await query;
+      
+      if (error) throw error;
+      console.log('📊 Facturas obtenidas:', data?.length || 0);
+      setInvoices(data || []);
+    } catch (err: any) {
+      console.error('Error al obtener facturas:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  const fetchMaestros = async () => {
+    try {
+      setLoadingMaestros(true);
+      
+      const { data: proveedoresData } = await supabase.from('proveedores').select('*');
+      const { data: articulosData } = await supabase.from('articulos').select('*');
+      const { data: delegacionesData } = await supabase.from('delegaciones').select('*');
+      
+      setProveedores(proveedoresData || []);
+      setArticulos(articulosData || []);
+      setDelegaciones(delegacionesData || []);
+    } catch (err: any) {
+      console.error('Error cargando datos maestros:', err);
+    } finally {
+      setLoadingMaestros(false);
+    }
+  };
   useEffect(() => {
     // Verificar permisos del usuario actual al cargar la página
     const username = sessionStorage.getItem('username');
