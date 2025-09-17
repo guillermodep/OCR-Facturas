@@ -664,9 +664,9 @@ export function FacturasProcesadasPage() {
   const fetchInvoices = async () => {
     try {
       setLoading(true);
-      
+
       let query = supabase.from('processed_invoices').select('*').order('created_at', { ascending: false });
-      
+
       // Si no es admin, filtrar por usuario actual
       if (!isAdmin && currentUsername) {
         query = query.eq('usuario', currentUsername);
@@ -674,11 +674,20 @@ export function FacturasProcesadasPage() {
       } else if (isAdmin) {
         console.log('👑 Usuario admin - mostrando todas las facturas');
       }
-      
+
       const { data, error } = await query;
-      
+
       if (error) throw error;
       console.log('📊 Facturas obtenidas:', data?.length || 0);
+      console.log('🔍 Detalle de las primeras 2 facturas:', data?.slice(0, 2));
+
+      // Verificar específicamente el campo usuario
+      if (data && data.length > 0) {
+        data.forEach((invoice, index) => {
+          console.log(`📋 Factura ${index + 1} - usuario:`, invoice.usuario, 'tipo:', typeof invoice.usuario);
+        });
+      }
+
       setInvoices(data || []);
     } catch (err: any) {
       console.error('Error al obtener facturas:', err);
