@@ -667,25 +667,30 @@ export function FacturasProcesadasPage() {
 
       let query = supabase.from('processed_invoices').select('*').order('created_at', { ascending: false });
 
-      // Si no es admin, filtrar por usuario actual
+      // Filtrar por usuario actual (cada usuario solo ve sus facturas, salvo admin que ve todas)
       if (!isAdmin && currentUsername) {
         query = query.eq('usuario', currentUsername);
         console.log('🔍 Filtrando facturas para usuario:', currentUsername);
+        console.log('📊 Mostrando solo facturas del usuario actual');
       } else if (isAdmin) {
-        console.log('👑 Usuario admin - mostrando todas las facturas');
+        console.log('👑 Usuario admin - mostrando todas las facturas de todos los usuarios');
+      } else {
+        console.log('⚠️ No hay usuario logueado - mostrando facturas vacías');
+        setInvoices([]);
+        return;
       }
 
       const { data, error } = await query;
 
       if (error) throw error;
       console.log('📊 Facturas obtenidas:', data?.length || 0);
-      console.log('🔍 Detalle de las primeras 2 facturas:', data?.slice(0, 2));
 
-      // Verificar específicamente el campo usuario
+      // Verificar específicamente el campo usuario para debugging
       if (data && data.length > 0) {
-        data.forEach((invoice, index) => {
-          console.log(`📋 Factura ${index + 1} - usuario:`, invoice.usuario, 'tipo:', typeof invoice.usuario);
-        });
+        console.log('🔍 Detalle de usuarios en las facturas:');
+        const usuariosUnicos = [...new Set(data.map(invoice => invoice.usuario).filter(u => u))];
+        console.log('👥 Usuarios únicos encontrados:', usuariosUnicos);
+        console.log('📋 Primera factura - usuario:', data[0].usuario);
       }
 
       setInvoices(data || []);
@@ -718,12 +723,17 @@ export function FacturasProcesadasPage() {
     // Verificar permisos del usuario actual al cargar la página
     const username = sessionStorage.getItem('username');
     const isAdminUser = username === 'admin';
-    
+
     setCurrentUsername(username || '');
     setIsAdmin(isAdminUser);
-    
-    console.log('🔐 Permisos inicializados:', { username, isAdmin: isAdminUser });
-    
+
+    console.log('🔐 Permisos inicializados:', {
+      username,
+      isAdmin: isAdminUser,
+      filtrado: isAdminUser ? 'TODAS las facturas' : `Solo facturas de ${username}`
+    });
+
+    // Cargar facturas después de verificar permisos
     fetchInvoices();
     fetchMaestros();
   }, []);
@@ -739,7 +749,23 @@ export function FacturasProcesadasPage() {
   return (
     <div className="p-8">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Facturas Procesadas</h1>
+        <div>
+          <h1 className="text-3xl font-bold">Facturas Procesadas</h1>
+          {/* Indicador de filtrado por usuario */}
+          <div className="flex items-center gap-2 mt-2">
+            {isAdmin ? (
+              <div className="flex items-center gap-2 px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium">
+                <span className="w-2 h-2 bg-purple-500 rounded-full"></span>
+                👑 Admin - Viendo todas las facturas
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+                <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                👤 Usuario: {currentUsername} - Solo sus facturas
+              </div>
+            )}
+          </div>
+        </div>
         <div className="flex items-center gap-4">
           {invoices.length > 0 && (
             <Button onClick={handleSelectAll} variant="outline" size="sm">
