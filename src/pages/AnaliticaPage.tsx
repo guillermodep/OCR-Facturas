@@ -1,8 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  LineChart, Line, AreaChart, Area
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
 import { DollarSign, FileText, Truck, Package, Filter, TrendingUp, TrendingDown } from 'lucide-react';
 
@@ -519,65 +518,6 @@ export const AnaliticaPage: React.FC = () => {
               </div>
             </>
           )}
-        </div>
-      </div>
-
-      {/* Gráficos */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-        {/* Gráfico de Tendencias Temporales */}
-        <div className="bg-white p-6 rounded-xl shadow-md">
-          <h2 className="text-xl font-semibold text-slate-700 mb-4">Tendencia de Gastos (12 meses)</h2>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={generateTrendData()} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="mes" />
-              <YAxis />
-              <Tooltip
-                formatter={(value: number, name: string) => [
-                  name === 'gasto' ? `${value.toFixed(2)} €` : value,
-                  name === 'gasto' ? 'Gasto' : 'Facturas'
-                ]}
-                labelFormatter={(label) => `Mes: ${label}`}
-              />
-              <Legend />
-              <Line
-                type="monotone"
-                dataKey="gasto"
-                stroke="#8884d8"
-                strokeWidth={3}
-                dot={{ fill: '#8884d8', strokeWidth: 2, r: 4 }}
-                activeDot={{ r: 6 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Gráfico de Tendencias de Facturas */}
-        <div className="bg-white p-6 rounded-xl shadow-md">
-          <h2 className="text-xl font-semibold text-slate-700 mb-4">Tendencia de Facturas (12 meses)</h2>
-          <ResponsiveContainer width="100%" height={300}>
-            <AreaChart data={generateTrendData()} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="mes" />
-              <YAxis />
-              <Tooltip
-                formatter={(value: number, name: string) => [
-                  name === 'facturas' ? `${value} facturas` : `${value.toFixed(2)} €`,
-                  name === 'facturas' ? 'Facturas' : 'Gasto'
-                ]}
-                labelFormatter={(label) => `Mes: ${label}`}
-              />
-              <Legend />
-              <Area
-                type="monotone"
-                dataKey="facturas"
-                stroke="#00C49F"
-                fill="#00C49F"
-                fillOpacity={0.6}
-                strokeWidth={2}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
         </div>
       </div>
 
