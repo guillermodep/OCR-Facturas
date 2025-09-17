@@ -124,9 +124,15 @@ export function GestionUsuariosPage() {
     }
   };
 
-  const handleDeleteUser = async (userId: string) => {
+  const handleDeleteUser = async (userId: string, username: string) => {
     try {
       setError(null);
+
+      // Verificar si el usuario es admin
+      if (username === 'admin') {
+        setError('No se puede eliminar al usuario administrador del sistema.');
+        return;
+      }
 
       // Eliminar de tabla users
       const { error: userError } = await supabase
@@ -322,10 +328,14 @@ export function GestionUsuariosPage() {
                     <button
                       onClick={() => {
                         if (window.confirm(`¿Eliminar usuario ${user.username}?`)) {
-                          handleDeleteUser(user.id);
+                          handleDeleteUser(user.id, user.username);
                         }
                       }}
-                      className="px-3 py-1 text-red-600 hover:text-red-800 border border-red-300 hover:border-red-400 rounded-md text-sm flex items-center"
+                      className={`px-3 py-1 text-red-600 hover:text-red-800 border border-red-300 hover:border-red-400 rounded-md text-sm flex items-center ${
+                        user.username === 'admin' ? 'opacity-50 cursor-not-allowed' : ''
+                      }`}
+                      disabled={user.username === 'admin'}
+                      title={user.username === 'admin' ? 'No se puede eliminar al administrador' : 'Eliminar usuario'}
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
