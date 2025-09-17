@@ -824,36 +824,11 @@ export const ExcelViewer: React.FC<ExcelViewerProps> = ({ processedData }) => {
             </div>
             <div>
               <h3 className="text-lg font-bold text-gray-900">Editor de Excel Inteligente</h3>
-              <p className="text-xs text-gray-600">Edita y exporta tus datos procesados</p>
+              <p className="text-xs text-gray-600">Las facturas se guardan automáticamente al procesarlas</p>
             </div>
           </div>
           
           <div className="flex gap-2">
-            <Button
-              onClick={addRow}
-              className="bg-gradient-to-r from-purple-500 to-blue-500 text-white hover:from-purple-600 hover:to-blue-600 shadow-lg hover:shadow-xl transition-all duration-300"
-              size="sm"
-            >
-              + Nueva Fila
-            </Button>
-            <Button
-              onClick={saveProcessedInvoices}
-              disabled={isSaving}
-              className="bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:from-green-600 hover:to-emerald-600 shadow-lg hover:shadow-xl transition-all duration-300 flex items-center gap-2"
-              size="sm"
-            >
-              {isSaving ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  Guardando...
-                </>
-              ) : (
-                <>
-                  <FileSpreadsheet className="h-4 w-4" />
-                  Guardar BD
-                </>
-              )}
-            </Button>
             <Button
               onClick={exportToCSV}
               className="bg-gradient-to-r from-blue-500 to-cyan-500 text-white hover:from-blue-600 hover:to-cyan-600 shadow-lg hover:shadow-xl transition-all duration-300 flex items-center gap-2"

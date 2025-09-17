@@ -2,33 +2,79 @@ import { useState } from 'react';
 import { ImageUploader } from '../components/ImageUploader';
 import { ExcelViewer } from '../components/ExcelViewer';
 import { FileSpreadsheet, Sparkles, Activity, Zap } from 'lucide-react';
+import { supabase } from '../lib/supabaseClient';
 
 export function CargarFacturasPage() {
   const [processedData, setProcessedData] = useState<any[]>([]);
 
 
-  const handleSingleImageProcessed = (data: any) => {
+  const handleSingleImageProcessed = async (data: any) => {
     console.log('🔄 Nueva factura procesada:', data);
-    console.log('📊 Estado actual de processedData:', processedData);
-    
-    setProcessedData(prev => {
-      // Verificar si esta factura ya existe para evitar duplicados
-      const exists = prev.some(invoice => {
-        const existingFileName = invoice.fileName || invoice.data?.fileName || '';
-        const newFileName = data.fileName || data.data?.fileName || '';
-        return existingFileName === newFileName && existingFileName !== '';
-      });
-      
-      if (exists) {
-        console.log('⚠️ Factura duplicada detectada, omitiendo:', data.fileName);
-        return prev;
+
+    try {
+      // Obtener el usuario actual del sessionStorage
+      const currentUsername = sessionStorage.getItem('username');
+      if (!currentUsername) {
+        console.error('❌ No se pudo obtener el usuario actual. Asegúrate de estar logueado.');
+        alert('Error: No se pudo obtener el usuario actual. Asegúrate de estar logueado.');
+        return;
       }
-      
-      const newData = [...prev, data];
-      console.log('✅ Agregando nueva factura. Total:', newData.length);
-      console.log('📋 Contenido de processedData después de agregar:', newData);
-      return newData;
-    });
+
+      console.log('👤 Procesando factura para usuario:', currentUsername);
+
+      // Preparar los datos de la factura para guardar en la base de datos
+      const invoiceData = {
+        numero_factura: data.data?.proveedor || data.proveedor || '',
+        fecha_factura: data.data?.fecha || data.fecha || '',
+        proveedor: data.data?.proveedor || data.proveedor || '',
+        cliente: data.data?.cliente || data.cliente || '',
+        usuario: currentUsername, // Usuario que procesó la factura
+        items: data.data?.items || data.items || [],
+        created_at: new Date().toISOString()
+      };
+
+      console.log('💾 Guardando factura automáticamente:', invoiceData);
+
+      // Guardar la factura en la base de datos
+      const { data: savedData, error } = await supabase
+        .from('processed_invoices')
+        .insert(invoiceData)
+        .select();
+
+      if (error) {
+        console.error('❌ Error guardando factura automáticamente:', error);
+        alert(`Error al guardar la factura: ${error.message}`);
+        return;
+      }
+
+      console.log('✅ Factura guardada exitosamente:', savedData);
+
+      // Agregar al estado local para mostrar en el editor (opcional)
+      setProcessedData(prev => {
+        // Verificar si esta factura ya existe para evitar duplicados
+        const exists = prev.some(invoice => {
+          const existingFileName = invoice.fileName || invoice.data?.fileName || '';
+          const newFileName = data.fileName || data.data?.fileName || '';
+          return existingFileName === newFileName && existingFileName !== '';
+        });
+
+        if (exists) {
+          console.log('⚠️ Factura duplicada detectada, omitiendo:', data.fileName);
+          return prev;
+        }
+
+        const newData = [...prev, data];
+        console.log('✅ Factura agregada al editor. Total:', newData.length);
+        return newData;
+      });
+
+      // Mostrar mensaje de éxito
+      console.log(`🎉 Factura procesada y guardada exitosamente por usuario: ${currentUsername}`);
+
+    } catch (error: any) {
+      console.error('💥 Error procesando factura:', error);
+      alert(`Error al procesar la factura: ${error.message}`);
+    }
   };
 
 
