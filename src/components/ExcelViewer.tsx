@@ -724,6 +724,7 @@ export const ExcelViewer: React.FC<ExcelViewerProps> = ({ processedData }) => {
 
   // Función para guardar las facturas procesadas en la base de datos
   const saveProcessedInvoices = async () => {
+    console.log('⚠️ saveProcessedInvoices LLAMADA - Esta función NO debería ejecutarse automáticamente');
     if (data.rows.length === 0) {
       alert('No hay facturas procesadas para guardar.');
       return;
@@ -735,16 +736,17 @@ export const ExcelViewer: React.FC<ExcelViewerProps> = ({ processedData }) => {
     try {
       // Obtener el usuario actual del sessionStorage
       const currentUsername = sessionStorage.getItem('username');
-      console.log('🔍 sessionStorage completo:', Object.keys(sessionStorage));
-      console.log('👤 currentUsername del sessionStorage:', currentUsername);
-      console.log('🔐 isAuthenticated del sessionStorage:', sessionStorage.getItem('isAuthenticated'));
+      console.log('🔍 saveProcessedInvoices - sessionStorage completo:', Object.keys(sessionStorage));
+      console.log('👤 saveProcessedInvoices - currentUsername del sessionStorage:', currentUsername);
+      console.log('🔐 saveProcessedInvoices - isAuthenticated del sessionStorage:', sessionStorage.getItem('isAuthenticated'));
 
       if (!currentUsername) {
+        console.error('❌ saveProcessedInvoices - ERROR: No se pudo obtener el usuario actual');
         throw new Error('No se pudo obtener el usuario actual. Asegúrate de estar logueado.');
       }
 
-      console.log('✅ Usuario encontrado:', currentUsername);
-      console.log('📊 Cantidad de filas a guardar:', data.rows.length);
+      console.log('✅ saveProcessedInvoices - Usuario encontrado:', currentUsername);
+      console.log('📊 saveProcessedInvoices - Cantidad de filas a guardar:', data.rows.length);
 
       // Preparar las facturas para guardar
       const invoicesToSave = data.rows.map((row, index) => {
@@ -765,7 +767,7 @@ export const ExcelViewer: React.FC<ExcelViewerProps> = ({ processedData }) => {
           created_at: new Date().toISOString()
         };
 
-        console.log(`📄 Factura ${index + 1} preparada:`, {
+        console.log(`📄 saveProcessedInvoices - Factura ${index + 1} preparada:`, {
           numero_factura: invoiceData.numero_factura,
           usuario: invoiceData.usuario,
           cliente: invoiceData.cliente,
@@ -775,12 +777,12 @@ export const ExcelViewer: React.FC<ExcelViewerProps> = ({ processedData }) => {
         return invoiceData;
       });
 
-      console.log('📋 Array completo de facturas a guardar:', invoicesToSave);
+      console.log('📋 saveProcessedInvoices - Array completo de facturas a guardar:', invoicesToSave);
 
       // Guardar cada factura en la base de datos
       for (let i = 0; i < invoicesToSave.length; i++) {
         const invoice = invoicesToSave[i];
-        console.log(`💾 Guardando factura ${i + 1}/${invoicesToSave.length}:`, invoice);
+        console.log(`💾 saveProcessedInvoices - Guardando factura ${i + 1}/${invoicesToSave.length}:`, invoice);
 
         const { data: savedData, error } = await supabase
           .from('processed_invoices')
@@ -788,16 +790,16 @@ export const ExcelViewer: React.FC<ExcelViewerProps> = ({ processedData }) => {
           .select();
 
         if (error) {
-          console.error('❌ Error guardando factura:', error);
-          console.error('❌ Detalles de la factura que falló:', invoice);
+          console.error('❌ saveProcessedInvoices - Error guardando factura:', error);
+          console.error('❌ saveProcessedInvoices - Detalles de la factura que falló:', invoice);
           throw new Error(`Error al guardar la factura ${invoice.numero_factura}: ${error.message}`);
         }
 
-        console.log('✅ Factura guardada exitosamente:', savedData);
+        console.log('✅ saveProcessedInvoices - Factura guardada exitosamente:', savedData);
       }
 
       setSaveSuccess(true);
-      console.log(`🎉 ${invoicesToSave.length} facturas guardadas exitosamente por usuario: ${currentUsername}`);
+      console.log(`🎉 saveProcessedInvoices - ${invoicesToSave.length} facturas guardadas exitosamente por usuario: ${currentUsername}`);
 
       // Mostrar mensaje de éxito
       setTimeout(() => {
@@ -805,7 +807,7 @@ export const ExcelViewer: React.FC<ExcelViewerProps> = ({ processedData }) => {
       }, 500);
 
     } catch (error: any) {
-      console.error('💥 Error al guardar facturas:', error);
+      console.error('💥 saveProcessedInvoices - Error al guardar facturas:', error);
       alert(`Error al guardar las facturas: ${error.message}`);
     } finally {
       setIsSaving(false);

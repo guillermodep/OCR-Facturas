@@ -10,17 +10,29 @@ export function CargarFacturasPage() {
 
   const handleSingleImageProcessed = async (data: any) => {
     console.log('🔄 Nueva factura procesada:', data);
+    console.log('🔍 DEBUG - Estado del sessionStorage al procesar factura:');
+    console.log('   sessionStorage completo:', Object.keys(sessionStorage));
+    console.log('   username en sessionStorage:', sessionStorage.getItem('username'));
+    console.log('   isAuthenticated en sessionStorage:', sessionStorage.getItem('isAuthenticated'));
 
     try {
       // Obtener el usuario actual del sessionStorage
       const currentUsername = sessionStorage.getItem('username');
+      console.log('👤 Usuario obtenido del sessionStorage:', currentUsername);
+
       if (!currentUsername) {
-        console.error('❌ No se pudo obtener el usuario actual. Asegúrate de estar logueado.');
-        alert('Error: No se pudo obtener el usuario actual. Asegúrate de estar logueado.');
+        console.error('❌ ERROR CRÍTICO: No se pudo obtener el usuario del sessionStorage');
+        console.error('❌ sessionStorage completo en el momento del error:', Object.keys(sessionStorage));
+        console.error('❌ Detalles del sessionStorage:', {
+          username: sessionStorage.getItem('username'),
+          isAuthenticated: sessionStorage.getItem('isAuthenticated'),
+          length: sessionStorage.length
+        });
+        alert('Error crítico: No se pudo obtener el usuario actual. Asegúrate de estar logueado.');
         return;
       }
 
-      console.log('👤 Procesando factura para usuario:', currentUsername);
+      console.log('✅ Usuario validado correctamente:', currentUsername);
 
       // Preparar los datos de la factura para guardar en la base de datos
       const invoiceData = {
@@ -33,7 +45,14 @@ export function CargarFacturasPage() {
         created_at: new Date().toISOString()
       };
 
-      console.log('💾 Guardando factura automáticamente:', invoiceData);
+      console.log('💾 Intentando guardar factura automáticamente:', invoiceData);
+      console.log('📋 Detalles de la factura a guardar:');
+      console.log('   - numero_factura:', invoiceData.numero_factura);
+      console.log('   - fecha_factura:', invoiceData.fecha_factura);
+      console.log('   - proveedor:', invoiceData.proveedor);
+      console.log('   - cliente:', invoiceData.cliente);
+      console.log('   - usuario:', invoiceData.usuario);
+      console.log('   - items_count:', invoiceData.items.length);
 
       // Guardar la factura en la base de datos
       const { data: savedData, error } = await supabase
@@ -43,11 +62,37 @@ export function CargarFacturasPage() {
 
       if (error) {
         console.error('❌ Error guardando factura automáticamente:', error);
+        console.error('❌ Detalles del error:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
+        console.error('❌ Factura que falló:', invoiceData);
         alert(`Error al guardar la factura: ${error.message}`);
         return;
       }
 
       console.log('✅ Factura guardada exitosamente:', savedData);
+      console.log('📊 Respuesta completa de Supabase:', savedData);
+
+      // Verificar que la factura se guardó con el usuario correcto
+      if (savedData && savedData.length > 0) {
+        const savedInvoice = savedData[0];
+        console.log('🔍 Verificación de la factura guardada:');
+        console.log('   - ID:', savedInvoice.id);
+        console.log('   - numero_factura:', savedInvoice.numero_factura);
+        console.log('   - usuario guardado:', savedInvoice.usuario);
+        console.log('   - created_at:', savedInvoice.created_at);
+
+        if (savedInvoice.usuario !== currentUsername) {
+          console.error('❌ ERROR: La factura se guardó pero con usuario incorrecto!');
+          console.error('   - Usuario esperado:', currentUsername);
+          console.error('   - Usuario guardado:', savedInvoice.usuario);
+        } else {
+          console.log('✅ Usuario guardado correctamente en la base de datos');
+        }
+      }
 
       // Agregar al estado local para mostrar en el editor (opcional)
       setProcessedData(prev => {
@@ -73,6 +118,10 @@ export function CargarFacturasPage() {
 
     } catch (error: any) {
       console.error('💥 Error procesando factura:', error);
+      console.error('💥 Detalles del error:', {
+        message: error.message,
+        stack: error.stack
+      });
       alert(`Error al procesar la factura: ${error.message}`);
     }
   };
