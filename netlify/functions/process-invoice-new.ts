@@ -6,6 +6,76 @@ export const config = {
   timeout: 30
 };
 
+// Función para normalizar fechas al formato DD/MM/AAAA
+const normalizeDate = (dateString: string): string => {
+  if (!dateString || typeof dateString !== 'string') {
+    return '';
+  }
+
+  try {
+    // Limpiar espacios y caracteres especiales
+    const cleanedDate = dateString.trim();
+
+    // Si ya está en formato DD/MM/AAAA, retornarlo tal cual
+    if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(cleanedDate)) {
+      const [day, month, year] = cleanedDate.split('/');
+      const dayNum = parseInt(day, 10);
+      const monthNum = parseInt(month, 10);
+      const yearNum = parseInt(year, 10);
+
+      // Validar que sea una fecha válida
+      if (dayNum >= 1 && dayNum <= 31 && monthNum >= 1 && monthNum <= 12 && yearNum >= 1900 && yearNum <= 2100) {
+        return `${dayNum.toString().padStart(2, '0')}/${monthNum.toString().padStart(2, '0')}/${yearNum}`;
+      }
+    }
+
+    // Intentar parsear diferentes formatos comunes
+    let date: Date | null = null;
+
+    // Formato DD.MM.AA o DD.MM.AAAA (ej: 31.01.25)
+    if (/^\d{1,2}\.\d{1,2}\.\d{2,4}$/.test(cleanedDate)) {
+      const [day, month, year] = cleanedDate.split('.');
+      const yearNum = parseInt(year, 10);
+      const fullYear = yearNum < 100 ? (yearNum < 50 ? 2000 + yearNum : 1900 + yearNum) : yearNum;
+      date = new Date(fullYear, parseInt(month, 10) - 1, parseInt(day, 10));
+    }
+    // Formato DD/MM/AA o DD/MM/AAAA
+    else if (/^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(cleanedDate)) {
+      const [day, month, year] = cleanedDate.split('/');
+      const yearNum = parseInt(year, 10);
+      const fullYear = yearNum < 100 ? (yearNum < 50 ? 2000 + yearNum : 1900 + yearNum) : yearNum;
+      date = new Date(fullYear, parseInt(month, 10) - 1, parseInt(day, 10));
+    }
+    // Formato DD-MM-AA o DD-MM-AAAA
+    else if (/^\d{1,2}-\d{1,2}-\d{2,4}$/.test(cleanedDate)) {
+      const [day, month, year] = cleanedDate.split('-');
+      const yearNum = parseInt(year, 10);
+      const fullYear = yearNum < 100 ? (yearNum < 50 ? 2000 + yearNum : 1900 + yearNum) : yearNum;
+      date = new Date(fullYear, parseInt(month, 10) - 1, parseInt(day, 10));
+    }
+    // Formato de texto (ej: "18 de agosto de 2025", "18/08/2025")
+    else {
+      // Intentar parsear como fecha nativa de JavaScript
+      date = new Date(cleanedDate);
+    }
+
+    // Verificar si la fecha es válida
+    if (date && !isNaN(date.getTime())) {
+      const day = date.getDate().toString().padStart(2, '0');
+      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+      const year = date.getFullYear().toString();
+      return `${day}/${month}/${year}`;
+    }
+
+    // Si no se pudo parsear, retornar la cadena original limpiada
+    console.warn(`No se pudo normalizar la fecha: ${cleanedDate}`);
+    return cleanedDate;
+  } catch (error) {
+    console.error(`Error al normalizar fecha "${dateString}":`, error);
+    return dateString; // Retornar la cadena original si hay error
+  }
+};
+
 // Helper function to process a single image (base64) or PDF and return structured data
 const processImageWithAI = async (client: AzureOpenAI, imageBase64: string, mimeType: string) => {
   try {
@@ -168,7 +238,7 @@ export const handler: Handler = async (event) => {
           .from('processed_invoices')
           .insert({
             numero_factura: invoiceData.numeroFactura,
-            fecha_factura: invoiceData.fecha,
+            fecha_factura: normalizeDate(invoiceData.fecha), // Normalizar fecha al formato DD/MM/AAAA
             proveedor: invoiceData.proveedor,
             cliente: invoiceData.cliente,
             items: invoiceData.items,

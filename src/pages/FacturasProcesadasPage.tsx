@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import * as XLSX from 'xlsx';
 import { Button } from '@/components/ui/button';
-import { FileText, Calendar, User, Building, List, Trash2, FileDown } from 'lucide-react';
+import { FileText, Calendar, User, Building, List, Trash2, FileDown, CheckSquare, Square } from 'lucide-react';
 
 interface InvoiceItem {
   codCentral: string;
@@ -308,6 +308,18 @@ export function FacturasProcesadasPage() {
     );
   };
 
+  const handleSelectAll = () => {
+    if (selectedInvoices.length === invoices.length) {
+      // Si todas están seleccionadas, deseleccionar todas
+      setSelectedInvoices([]);
+    } else {
+      // Si no todas están seleccionadas, seleccionar todas
+      setSelectedInvoices(invoices.map(invoice => invoice.id));
+    }
+  };
+
+  const isAllSelected = selectedInvoices.length === invoices.length && invoices.length > 0;
+
   const handleDeleteSelected = async () => {
     if (window.confirm(`¿Estás seguro de que quieres eliminar ${selectedInvoices.length} factura(s) seleccionada(s)?`)) {
       const { error } = await supabase
@@ -400,6 +412,21 @@ export function FacturasProcesadasPage() {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Facturas Procesadas</h1>
         <div className="flex items-center gap-4">
+          {invoices.length > 0 && (
+            <Button onClick={handleSelectAll} variant="outline" size="sm">
+              {isAllSelected ? (
+                <>
+                  <CheckSquare className="mr-2 h-4 w-4" />
+                  Deseleccionar todas ({invoices.length})
+                </>
+              ) : (
+                <>
+                  <Square className="mr-2 h-4 w-4" />
+                  Seleccionar todas ({invoices.length})
+                </>
+              )}
+            </Button>
+          )}
           {selectedInvoices.length > 0 && (
             <div className="flex items-center gap-2">
               <Button onClick={handleDeleteSelected} variant="destructive" size="sm">
