@@ -215,6 +215,7 @@ export function FacturasProcesadasPage() {
       'MANTEQUILLA 82%MG CAMPINA 10K+':'Mantequilla 82 10Kgs',
       'MASCARPONE 500 GR':'Mascarpone 500Gr',
       'CREMETTE':'Cremette 30 cubo 3,5kg',
+      'VICTORIA BARRIL 50L':'Barril 50L Victoria',
     };
 
     for (const key in articleMap) {
