@@ -481,21 +481,25 @@ export const ExcelViewer: React.FC<ExcelViewerProps> = ({ processedData }) => {
   // La función calcularSumaCodProveedor ha sido eliminada
 
   useEffect(() => {
-    console.log('ExcelViewer recibió processedData:', processedData);
-    
+    console.log('🔍 ExcelViewer - useEffect ejecutado');
+    console.log('📊 ExcelViewer recibió processedData:', processedData);
+    console.log('🔢 processedData.length:', processedData?.length || 0);
+    console.log('📈 processedCount actual:', processedCount);
+
     // Solo procesar las nuevas facturas que no hemos procesado aún
     if (processedData && processedData.length > processedCount) {
+      console.log('✅ Condición cumplida: procesando nuevas facturas');
       const newInvoices = processedData.slice(processedCount);
       console.log('🔄 Procesando nuevas facturas:', newInvoices.length);
-      
+
       const newRows = newInvoices.flatMap(invoice => {
         // Manejar diferentes estructuras de datos
         const invoiceData = invoice.data || invoice;
         const items = invoiceData.items || invoiceData.data?.items || [];
-        
+
         // Obtener el nombre del archivo
         const fileName = invoice.fileName || invoiceData.fileName || invoiceData.data?.fileName || 'Sin nombre';
-        
+
         if (Array.isArray(items) && items.length > 0) {
           return items.map((item: InvoiceItem) => {
             const proveedor = invoiceData.proveedor || invoiceData.data?.proveedor || '';
@@ -503,19 +507,19 @@ export const ExcelViewer: React.FC<ExcelViewerProps> = ({ processedData }) => {
             const unidades = item.unidades ?? 0;
             const precioUd = item.precioUd ?? 0;
             const dto = item.dto ?? 0;
-            
+
             // Buscar datos del artículo si hay descripción
             const datosArticulo = item.descripcion ? buscarDatosArticulo(item.descripcion) : { codigo: '', subfamilia: '', iva: 0 };
-            
+
             // Usar el IVA del maestro de artículos si está disponible, de lo contrario usar el de la factura
             const iva = datosArticulo.iva || item.iva || 0; // priorizar IVA del maestro
             const netoCalc = item.neto ?? (unidades * precioUd * (1 - dto / 100));
             const importe = netoCalc * (1 + iva / 100);
-            
+
             // Obtener cliente de los datos de la factura
             const cliente = invoiceData.cliente || invoiceData.data?.cliente || '';
             const delegacion = buscarDelegacion(cliente);
-            
+
             return [
               fileName,
               proveedor,
@@ -537,24 +541,35 @@ export const ExcelViewer: React.FC<ExcelViewerProps> = ({ processedData }) => {
         }
         return [];
       });
-      
+
       if (newRows.length > 0) {
         console.log('➕ Agregando nuevas filas al editor:', newRows.length);
-        
+
         // Agregar las nuevas filas a las existentes
         setData(prevData => ({
           ...prevData,
           rows: [...prevData.rows, ...newRows]
         }));
-        
+
         // Actualizar el contador de facturas procesadas
         setProcessedCount(processedData.length);
+        console.log('🔄 processedCount actualizado a:', processedData.length);
+      } else {
+        console.log('⚠️ No hay nuevas filas para agregar');
       }
+    } else {
+      console.log('⏭️ Condición NO cumplida - no se procesan facturas');
+      console.log('   processedData existe:', !!processedData);
+      console.log('   processedData.length:', processedData?.length || 0);
+      console.log('   processedCount:', processedCount);
     }
   }, [processedData, processedCount, loadingProveedores, loadingArticulos, loadingDelegaciones]);
 
   // Efecto separado para limpiar cuando processedData se resetea
   useEffect(() => {
+    console.log('🧹 Efecto de limpieza ejecutado');
+    console.log('📊 processedData.length en limpieza:', processedData.length);
+
     if (processedData.length === 0) {
       console.log('🧹 Limpiando editor - processedData vacío');
       setData(prevData => ({
@@ -562,6 +577,9 @@ export const ExcelViewer: React.FC<ExcelViewerProps> = ({ processedData }) => {
         rows: []
       }));
       setProcessedCount(0);
+      console.log('🔄 processedCount reseteado a 0');
+    } else {
+      console.log('✅ No se limpia - processedData tiene contenido');
     }
   }, [processedData.length]);
 

@@ -8,7 +8,9 @@ export function CargarFacturasPage() {
 
 
   const handleSingleImageProcessed = (data: any) => {
-    console.log('Factura individual procesada:', data);
+    console.log('🔄 Nueva factura procesada:', data);
+    console.log('📊 Estado actual de processedData:', processedData);
+    
     setProcessedData(prev => {
       // Verificar si esta factura ya existe para evitar duplicados
       const exists = prev.some(invoice => {
@@ -23,7 +25,8 @@ export function CargarFacturasPage() {
       }
       
       const newData = [...prev, data];
-      console.log('✅ Agregando nueva factura al editor:', newData.length, 'total');
+      console.log('✅ Agregando nueva factura. Total:', newData.length);
+      console.log('📋 Contenido de processedData después de agregar:', newData);
       return newData;
     });
   };
