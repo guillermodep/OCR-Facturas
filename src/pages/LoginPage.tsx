@@ -47,7 +47,7 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
             <Shield className="w-10 h-10 text-white" />
           </div>
           <h1 className="text-4xl font-bold text-slate-800 mb-3">
-            Sistema Inteligente de Interpretación de Facturas y Remitos
+            Sistema Inteligente de Identificación de Facturas y Remitos
           </h1>
         </div>
 
@@ -154,7 +154,7 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
             {/* Footer */}
             <div className="text-center pt-4 border-t border-slate-200">
               <p className="text-sm text-slate-500">
-                Sistema seguro • OCR Inteligente • Procesamiento Automático
+                Sistema seguro • IA OCR • Procesamiento Automático
               </p>
             </div>
           </form>
@@ -164,15 +164,15 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
         <div className="mt-8 text-center">
           <div className="inline-flex items-center gap-4 px-6 py-3 bg-white rounded-full shadow-md border border-slate-200">
             <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-blink-soft"></div>
               <span className="text-sm text-slate-600">Sistema Online</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
-              <span className="text-sm text-slate-600">OCR Activo</span>
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-blink-soft" style={{ animationDelay: '0.3s' }}></div>
+              <span className="text-sm text-slate-600">IA OCR Activo</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-blink-soft" style={{ animationDelay: '0.6s' }}></div>
               <span className="text-sm text-slate-600">Base de Datos</span>
             </div>
           </div>
