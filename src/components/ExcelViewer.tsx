@@ -75,12 +75,14 @@ export const ExcelViewer: React.FC<ExcelViewerProps> = ({ processedData }) => {
   
   // Estado para rastrear cuántas facturas hemos procesado
   const [processedCount, setProcessedCount] = useState(0);
-  const [proveedores, setProveedores] = useState<Proveedor[]>([]);
-  const [articulos, setArticulos] = useState<Articulo[]>([]);
-  const [delegaciones, setDelegaciones] = useState<Delegacion[]>([]);
   const [loadingProveedores, setLoadingProveedores] = useState(true);
   const [loadingArticulos, setLoadingArticulos] = useState(true);
   const [loadingDelegaciones, setLoadingDelegaciones] = useState(true);
+  const [proveedores, setProveedores] = useState<Proveedor[]>([]);
+  const [articulos, setArticulos] = useState<Articulo[]>([]);
+  const [delegaciones, setDelegaciones] = useState<Delegacion[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
 
   // Cargar la lista de proveedores
   useEffect(() => {
@@ -694,12 +696,75 @@ export const ExcelViewer: React.FC<ExcelViewerProps> = ({ processedData }) => {
       data.headers.join(','),
       ...data.rows.map(row => row.map(cell => `"${cell}"`).join(','))
     ].join('\n');
-    
+
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     link.download = `facturas_${new Date().toISOString().split('T')[0]}.csv`;
     link.click();
+  };
+
+  // Función para guardar las facturas procesadas en la base de datos
+  const saveProcessedInvoices = async () => {
+    if (data.rows.length === 0) {
+      alert('No hay facturas procesadas para guardar.');
+      return;
+    }
+
+    setIsSaving(true);
+    setSaveSuccess(false);
+
+    try {
+      // Obtener el usuario actual del sessionStorage
+      const currentUsername = sessionStorage.getItem('username');
+      if (!currentUsername) {
+        throw new Error('No se pudo obtener el usuario actual');
+      }
+
+      // Preparar las facturas para guardar
+      const invoicesToSave = data.rows.map(row => ({
+        numero_factura: row[1] || '', // Proveedor
+        fecha_factura: row[2] || '', // CIF
+        proveedor: row[1] || '', // Proveedor
+        cliente: row[5] || '', // Cliente
+        usuario: currentUsername, // Usuario que procesó la factura
+        items: [{
+          descripcion: row[8] || '', // Descripción
+          unidades: parseFloat(row[9]?.toString() || '0'),
+          precioUd: parseFloat(row[10]?.toString() || '0'),
+          dto: parseFloat(row[11]?.toString() || '0'),
+          iva: parseFloat(row[12]?.toString() || '0'),
+          neto: parseFloat(row[13]?.toString() || '0')
+        }],
+        created_at: new Date().toISOString()
+      }));
+
+      // Guardar cada factura en la base de datos
+      for (const invoice of invoicesToSave) {
+        const { error } = await supabase
+          .from('processed_invoices')
+          .insert(invoice);
+
+        if (error) {
+          console.error('Error guardando factura:', error);
+          throw new Error(`Error al guardar la factura ${invoice.numero_factura}`);
+        }
+      }
+
+      setSaveSuccess(true);
+      console.log(`✅ ${invoicesToSave.length} facturas guardadas exitosamente por usuario: ${currentUsername}`);
+
+      // Mostrar mensaje de éxito
+      setTimeout(() => {
+        alert(`${invoicesToSave.length} facturas guardadas exitosamente en la base de datos.`);
+      }, 500);
+
+    } catch (error: any) {
+      console.error('Error al guardar facturas:', error);
+      alert(`Error al guardar las facturas: ${error.message}`);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // Totals computation removed since the totals row is no longer displayed
@@ -727,12 +792,22 @@ export const ExcelViewer: React.FC<ExcelViewerProps> = ({ processedData }) => {
               + Nueva Fila
             </Button>
             <Button
-              onClick={exportToExcel}
+              onClick={saveProcessedInvoices}
+              disabled={isSaving}
               className="bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:from-green-600 hover:to-emerald-600 shadow-lg hover:shadow-xl transition-all duration-300 flex items-center gap-2"
               size="sm"
             >
-              <Download className="h-4 w-4" />
-              Excel
+              {isSaving ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  Guardando...
+                </>
+              ) : (
+                <>
+                  <FileSpreadsheet className="h-4 w-4" />
+                  Guardar BD
+                </>
+              )}
             </Button>
             <Button
               onClick={exportToCSV}
