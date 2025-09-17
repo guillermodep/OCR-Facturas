@@ -816,15 +816,15 @@ export function FacturasProcesadasPage() {
                 />
                 <div className="flex-grow">
                   {/* Primera fila: N° Factura, Fecha, Usuario */}
-                  <div className="grid grid-cols-3 gap-4 mb-2">
-                    <div className="flex items-center"><FileText className="mr-2 h-4 w-4" /> <strong>Nº Factura:</strong> {invoice.numero_factura}</div>
-                    <div className="flex items-center"><Calendar className="mr-2 h-4 w-4" /> <strong>Fecha:</strong> {invoice.fecha_factura}</div>
-                    <div className="flex items-center"><span className="mr-2 h-4 w-4 flex items-center justify-center text-sm font-bold text-blue-600">👤</span> <strong>Usuario:</strong> {(invoice as any).usuario || 'N/A'}</div>
+                  <div className="grid grid-cols-3 gap-6 mb-3">
+                    <div className="flex items-center min-w-0"><FileText className="mr-2 h-4 w-4 flex-shrink-0" /> <span className="font-semibold text-gray-700 whitespace-nowrap">Nº Factura:</span> <span className="ml-1 text-gray-900 truncate">{invoice.numero_factura}</span></div>
+                    <div className="flex items-center min-w-0"><Calendar className="mr-2 h-4 w-4 flex-shrink-0" /> <span className="font-semibold text-gray-700 whitespace-nowrap">Fecha:</span> <span className="ml-1 text-gray-900 truncate">{invoice.fecha_factura}</span></div>
+                    <div className="flex items-center min-w-0"><span className="mr-2 h-4 w-4 flex items-center justify-center text-sm font-bold text-blue-600 flex-shrink-0">👤</span> <span className="font-semibold text-gray-700 whitespace-nowrap">Usuario:</span> <span className="ml-1 text-gray-900 truncate">{(invoice as any).usuario || 'N/A'}</span></div>
                   </div>
                   {/* Segunda fila: Proveedor, Cliente */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="flex items-center"><User className="mr-2 h-4 w-4" /> <strong>Proveedor:</strong> {invoice.proveedor}</div>
-                    <div className="flex items-center"><Building className="mr-2 h-4 w-4" /> <strong>Cliente:</strong> {invoice.cliente}</div>
+                  <div className="grid grid-cols-2 gap-6">
+                    <div className="flex items-center min-w-0"><User className="mr-2 h-4 w-4 flex-shrink-0" /> <span className="font-semibold text-gray-700 whitespace-nowrap">Proveedor:</span> <span className="ml-1 text-gray-900 truncate">{invoice.proveedor}</span></div>
+                    <div className="flex items-center min-w-0"><Building className="mr-2 h-4 w-4 flex-shrink-0" /> <span className="font-semibold text-gray-700 whitespace-nowrap">Cliente:</span> <span className="ml-1 text-gray-900 truncate">{invoice.cliente}</span></div>
                   </div>
                 </div>
               </div>
