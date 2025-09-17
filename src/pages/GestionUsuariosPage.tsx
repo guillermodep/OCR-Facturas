@@ -41,22 +41,15 @@ export function GestionUsuariosPage() {
     fetchUsers();
   }, []);
 
-  const checkUserRole = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: userData } = await supabase
-          .from('users')
-          .select('role')
-          .eq('id', user.id)
-          .single();
-
-        if (userData) {
-          setCurrentUserRole(userData.role);
-        }
-      }
-    } catch (err) {
-      console.error('Error checking user role:', err);
+  const checkUserRole = () => {
+    // Obtener el username del sessionStorage (mismo método que usa el sistema de login)
+    const username = sessionStorage.getItem('username');
+    
+    // Verificar si es el usuario admin
+    if (username === 'admin') {
+      setCurrentUserRole('admin');
+    } else {
+      setCurrentUserRole('user');
     }
   };
 
@@ -82,23 +75,16 @@ export function GestionUsuariosPage() {
     try {
       setError(null);
 
-      // Crear usuario en auth
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: formData.email,
-        password: formData.password,
-      });
-
-      if (authError) throw authError;
-
-      // Crear usuario en tabla users
+      // Crear usuario en la tabla local users
       const { error: userError } = await supabase
         .from('users')
         .insert([
           {
-            id: authData.user?.id,
-            email: formData.email,
             username: formData.username,
+            password: formData.password,
             role: formData.role,
+            email: formData.email,
+            created_at: new Date().toISOString(),
           }
         ]);
 
@@ -124,6 +110,7 @@ export function GestionUsuariosPage() {
         .update({
           username: formData.username,
           role: formData.role,
+          email: formData.email,
         })
         .eq('id', editingUser.id);
 
