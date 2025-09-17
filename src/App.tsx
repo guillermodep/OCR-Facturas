@@ -6,6 +6,7 @@ import { MaestroDeDatosPage } from './pages/MaestroDeDatos';
 import { FacturasProcesadasPage } from './pages/FacturasProcesadasPage';
 import { AnaliticaPage } from './pages/AnaliticaPage';
 import { LoginPage } from './pages/LoginPage';
+import { GestionUsuariosPage } from './pages/GestionUsuariosPage';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -46,6 +47,7 @@ function App() {
           <Route path="maestro-de-datos" element={<MaestroDeDatosPage />} />
           <Route path="facturas-procesadas" element={<FacturasProcesadasPage />} />
           <Route path="analitica" element={<AnaliticaPage />} />
+          <Route path="gestion-usuarios" element={<GestionUsuariosPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

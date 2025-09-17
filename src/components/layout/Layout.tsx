@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom';
-import { Upload, Database, LogOut, FileText, BarChart } from 'lucide-react';
+import { Upload, Database, LogOut, FileText, BarChart, Users } from 'lucide-react';
 
 const navItems = [
   { name: 'Cargar Facturas', href: '/', icon: Upload },
@@ -14,6 +14,9 @@ interface LayoutProps {
 }
 
 export function Layout({ onLogout, username }: LayoutProps) {
+  // Verificar si el usuario es administrador (simplificado por ahora)
+  const isAdmin = username === 'admin' || username?.includes('admin'); // Esto debería ser más robusto
+
   return (
     <div className="flex h-screen bg-slate-50">
       <aside className="w-64 flex-shrink-0 bg-white border-r border-slate-200 flex flex-col">
@@ -43,7 +46,22 @@ export function Layout({ onLogout, username }: LayoutProps) {
             </ul>
           </nav>
         </div>
-        <div className="mt-auto p-4">
+        <div className="mt-auto p-4 space-y-2">
+          {isAdmin && (
+            <NavLink
+              to="/gestion-usuarios"
+              className={({ isActive }) =>
+                `flex items-center px-4 py-3 rounded-lg transition-all duration-200 transform hover:scale-105 ${
+                  isActive
+                    ? 'bg-gradient-to-r from-purple-500 to-pink-600 text-white shadow-md'
+                    : 'text-slate-600 hover:bg-slate-100'
+                }`
+              }
+            >
+              <Users className="h-5 w-5 mr-3" />
+              <span className="font-medium">Gestión de Usuarios</span>
+            </NavLink>
+          )}
           <button
             onClick={onLogout}
             className="flex items-center w-full px-4 py-3 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors duration-200"
