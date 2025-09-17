@@ -735,44 +735,69 @@ export const ExcelViewer: React.FC<ExcelViewerProps> = ({ processedData }) => {
     try {
       // Obtener el usuario actual del sessionStorage
       const currentUsername = sessionStorage.getItem('username');
+      console.log('🔍 sessionStorage completo:', Object.keys(sessionStorage));
+      console.log('👤 currentUsername del sessionStorage:', currentUsername);
+      console.log('🔐 isAuthenticated del sessionStorage:', sessionStorage.getItem('isAuthenticated'));
+
       if (!currentUsername) {
         throw new Error('No se pudo obtener el usuario actual. Asegúrate de estar logueado.');
       }
 
-      console.log('👤 Guardando facturas para usuario:', currentUsername);
+      console.log('✅ Usuario encontrado:', currentUsername);
+      console.log('📊 Cantidad de filas a guardar:', data.rows.length);
 
       // Preparar las facturas para guardar
-      const invoicesToSave = data.rows.map(row => ({
-        numero_factura: row[1] || '', // Proveedor
-        fecha_factura: row[2] || '', // CIF
-        proveedor: row[1] || '', // Proveedor
-        cliente: row[5] || '', // Cliente
-        usuario: currentUsername, // Usuario que procesó la factura
-        items: [{
-          descripcion: row[8] || '', // Descripción
-          unidades: parseFloat(row[9]?.toString() || '0'),
-          precioUd: parseFloat(row[10]?.toString() || '0'),
-          dto: parseFloat(row[11]?.toString() || '0'),
-          iva: parseFloat(row[12]?.toString() || '0'),
-          neto: parseFloat(row[13]?.toString() || '0')
-        }],
-        created_at: new Date().toISOString()
-      }));
+      const invoicesToSave = data.rows.map((row, index) => {
+        const invoiceData = {
+          numero_factura: row[1] || '', // Proveedor
+          fecha_factura: row[2] || '', // CIF
+          proveedor: row[1] || '', // Proveedor
+          cliente: row[5] || '', // Cliente
+          usuario: currentUsername, // Usuario que procesó la factura
+          items: [{
+            descripcion: row[8] || '', // Descripción
+            unidades: parseFloat(row[9]?.toString() || '0'),
+            precioUd: parseFloat(row[10]?.toString() || '0'),
+            dto: parseFloat(row[11]?.toString() || '0'),
+            iva: parseFloat(row[12]?.toString() || '0'),
+            neto: parseFloat(row[13]?.toString() || '0')
+          }],
+          created_at: new Date().toISOString()
+        };
+
+        console.log(`📄 Factura ${index + 1} preparada:`, {
+          numero_factura: invoiceData.numero_factura,
+          usuario: invoiceData.usuario,
+          cliente: invoiceData.cliente,
+          items_count: invoiceData.items.length
+        });
+
+        return invoiceData;
+      });
+
+      console.log('📋 Array completo de facturas a guardar:', invoicesToSave);
 
       // Guardar cada factura en la base de datos
-      for (const invoice of invoicesToSave) {
-        const { error } = await supabase
+      for (let i = 0; i < invoicesToSave.length; i++) {
+        const invoice = invoicesToSave[i];
+        console.log(`💾 Guardando factura ${i + 1}/${invoicesToSave.length}:`, invoice);
+
+        const { data: savedData, error } = await supabase
           .from('processed_invoices')
-          .insert(invoice);
+          .insert(invoice)
+          .select();
 
         if (error) {
-          console.error('Error guardando factura:', error);
-          throw new Error(`Error al guardar la factura ${invoice.numero_factura}`);
+          console.error('❌ Error guardando factura:', error);
+          console.error('❌ Detalles de la factura que falló:', invoice);
+          throw new Error(`Error al guardar la factura ${invoice.numero_factura}: ${error.message}`);
         }
+
+        console.log('✅ Factura guardada exitosamente:', savedData);
       }
 
       setSaveSuccess(true);
-      console.log(`✅ ${invoicesToSave.length} facturas guardadas exitosamente por usuario: ${currentUsername}`);
+      console.log(`🎉 ${invoicesToSave.length} facturas guardadas exitosamente por usuario: ${currentUsername}`);
 
       // Mostrar mensaje de éxito
       setTimeout(() => {
@@ -780,7 +805,7 @@ export const ExcelViewer: React.FC<ExcelViewerProps> = ({ processedData }) => {
       }, 500);
 
     } catch (error: any) {
-      console.error('Error al guardar facturas:', error);
+      console.error('💥 Error al guardar facturas:', error);
       alert(`Error al guardar las facturas: ${error.message}`);
     } finally {
       setIsSaving(false);
