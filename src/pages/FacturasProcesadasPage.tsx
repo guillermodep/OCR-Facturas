@@ -253,7 +253,7 @@ export function FacturasProcesadasPage() {
     if (invoicesToExport.length === 0) return;
 
     const excelHeaders = [
-      'Proveedor', 'CIF', 'Cód. Proveedor', 'Cliente', 'Delegación',
+      'Fecha Factura', 'Proveedor', 'CIF', 'Cód. Proveedor', 'Cliente', 'Delegación',
       'Cód. Artículo', 'Subfamilia', 'Descripción', 'Unidades',
       'Precio Ud.', '% Dto.', '% IVA', 'Neto', 'Importe'
     ];
@@ -265,6 +265,7 @@ export function FacturasProcesadasPage() {
         const datosArticulo = buscarDatosArticulo(item.descripcion);
 
         return [
+          invoice.fecha_factura || '',
           invoice.proveedor || '',
           datosProveedor.cif || '',
           datosProveedor.codigo || '',
@@ -288,9 +289,21 @@ export function FacturasProcesadasPage() {
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Facturas');
 
     worksheet['!cols'] = [
-      { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 12 },
-      { wch: 12 }, { wch: 12 }, { wch: 25 }, { wch: 10 }, { wch: 10 },
-      { wch: 8 }, { wch: 8 }, { wch: 10 }, { wch: 10 }
+      { wch: 12 }, // Fecha Factura
+      { wch: 20 }, // Proveedor
+      { wch: 12 }, // CIF
+      { wch: 12 }, // Cód. Proveedor
+      { wch: 15 }, // Cliente
+      { wch: 12 }, // Delegación
+      { wch: 12 }, // Cód. Artículo
+      { wch: 12 }, // Subfamilia
+      { wch: 25 }, // Descripción
+      { wch: 10 }, // Unidades
+      { wch: 10 }, // Precio Ud.
+      { wch: 8 },  // % Dto.
+      { wch: 8 },  // % IVA
+      { wch: 10 }, // Neto
+      { wch: 10 }  // Importe
     ];
 
     const fileName = invoicesToExport.length > 1 
