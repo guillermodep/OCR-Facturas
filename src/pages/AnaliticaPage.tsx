@@ -293,79 +293,152 @@ export const AnaliticaPage: React.FC = () => {
     <div className="p-8 bg-slate-50 min-h-screen">
       <h1 className="text-4xl font-bold text-slate-800 mb-8">Analítica de Facturas</h1>
 
-      {/* Filtros */}
-      <div className="bg-white p-6 rounded-xl shadow-md mb-8">
-        <div className="flex items-center gap-4 mb-4">
-          <Filter className="h-5 w-5 text-gray-600" />
-          <h2 className="text-lg font-semibold text-gray-700">Filtros</h2>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      {/* Filtros Modernos */}
+      <div className="bg-gradient-to-br from-white via-blue-50 to-indigo-50 p-8 rounded-2xl shadow-xl border border-blue-100 mb-8">
+        <div className="flex items-center gap-4 mb-8">
+          <div className="p-3 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl shadow-lg">
+            <Filter className="h-6 w-6 text-white" />
+          </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Período</label>
-            <select
-              value={filters.dateRange}
-              onChange={(e) => setFilters({...filters, dateRange: e.target.value})}
-              className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="all">Todo el tiempo</option>
-              <option value="month">Este mes</option>
-              <option value="quarter">Este trimestre</option>
-              <option value="year">Este año</option>
-              <option value="custom">Personalizado</option>
-            </select>
+            <h2 className="text-2xl font-bold text-gray-800">Filtros Avanzados</h2>
+            <p className="text-gray-600">Personaliza tu vista de datos con precisión</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {/* Período */}
+          <div className="group">
+            <label className="block text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+              <div className="p-1.5 bg-blue-100 rounded-md group-hover:bg-blue-200 transition-colors duration-200">
+                <span className="text-blue-600 text-xs">📅</span>
+              </div>
+              Período Temporal
+            </label>
+            <div className="relative">
+              <select
+                value={filters.dateRange}
+                onChange={(e) => setFilters({...filters, dateRange: e.target.value})}
+                className="w-full p-4 pr-12 bg-white border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all duration-200 text-gray-700 font-medium shadow-sm hover:shadow-md appearance-none cursor-pointer"
+              >
+                <option value="all" className="p-2">🌟 Todo el tiempo</option>
+                <option value="month" className="p-2">📅 Este mes</option>
+                <option value="quarter" className="p-2">📊 Este trimestre</option>
+                <option value="year" className="p-2">🎯 Este año</option>
+                <option value="custom" className="p-2">🎨 Personalizado</option>
+              </select>
+              <div className="absolute right-4 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            </div>
           </div>
 
-          {filters.dateRange === 'custom' && (
-            <>
+          {/* Usuario */}
+          <div className="group">
+            <label className="block text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+              <div className="p-1.5 bg-green-100 rounded-md group-hover:bg-green-200 transition-colors duration-200">
+                <span className="text-green-600 text-xs">👤</span>
+              </div>
+              Usuario
+            </label>
+            <div className="relative">
+              <select
+                value={filters.selectedUser}
+                onChange={(e) => setFilters({...filters, selectedUser: e.target.value})}
+                className="w-full p-4 pr-12 bg-white border-2 border-gray-200 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-100 transition-all duration-200 text-gray-700 font-medium shadow-sm hover:shadow-md appearance-none cursor-pointer"
+              >
+                <option value="all" className="p-2">👥 Todos los usuarios</option>
+                {getUniqueUsers().map(user => (
+                  <option key={user} value={user} className="p-2">👤 {user}</option>
+                ))}
+              </select>
+              <div className="absolute right-4 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          {/* Proveedor */}
+          <div className="group">
+            <label className="block text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+              <div className="p-1.5 bg-purple-100 rounded-md group-hover:bg-purple-200 transition-colors duration-200">
+                <span className="text-purple-600 text-xs">🏢</span>
+              </div>
+              Proveedor
+            </label>
+            <div className="relative">
+              <select
+                value={filters.selectedProveedor}
+                onChange={(e) => setFilters({...filters, selectedProveedor: e.target.value})}
+                className="w-full p-4 pr-12 bg-white border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all duration-200 text-gray-700 font-medium shadow-sm hover:shadow-md appearance-none cursor-pointer"
+              >
+                <option value="all" className="p-2">🏢 Todos los proveedores</option>
+                {getUniqueProveedores().map(proveedor => (
+                  <option key={proveedor} value={proveedor} className="p-2">🏢 {proveedor}</option>
+                ))}
+              </select>
+              <div className="absolute right-4 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          {/* Estado de Filtros */}
+          <div className="group">
+            <label className="block text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+              <div className="p-1.5 bg-orange-100 rounded-md group-hover:bg-orange-200 transition-colors duration-200">
+                <span className="text-orange-600 text-xs">📊</span>
+              </div>
+              Estado de Filtros
+            </label>
+            <div className="bg-white p-4 rounded-xl border-2 border-orange-200 shadow-sm">
+              <div className="flex items-center gap-2 mb-2">
+                <div className={`w-3 h-3 rounded-full ${filters.dateRange !== 'all' || filters.selectedUser !== 'all' || filters.selectedProveedor !== 'all' ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                <span className="text-sm font-medium text-gray-700">
+                  {filters.dateRange !== 'all' || filters.selectedUser !== 'all' || filters.selectedProveedor !== 'all' ? 'Filtros Activos' : 'Sin Filtros'}
+                </span>
+              </div>
+              <div className="text-xs text-gray-500">
+                {(filters.dateRange !== 'all' ? 1 : 0) + (filters.selectedUser !== 'all' ? 1 : 0) + (filters.selectedProveedor !== 'all' ? 1 : 0)} filtros aplicados
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Filtros de Fecha Personalizados */}
+        {filters.dateRange === 'custom' && (
+          <div className="mt-6 p-6 bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl border border-blue-200">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+              <span className="text-blue-600">📅</span>
+              Rango de Fechas Personalizado
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Fecha inicio</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Fecha de Inicio</label>
                 <input
                   type="date"
                   value={filters.startDate}
                   onChange={(e) => setFilters({...filters, startDate: e.target.value})}
-                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full p-3 bg-white border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all duration-200 text-gray-700 font-medium"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Fecha fin</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Fecha de Fin</label>
                 <input
                   type="date"
                   value={filters.endDate}
                   onChange={(e) => setFilters({...filters, endDate: e.target.value})}
-                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full p-3 bg-white border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all duration-200 text-gray-700 font-medium"
                 />
               </div>
-            </>
-          )}
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Usuario</label>
-            <select
-              value={filters.selectedUser}
-              onChange={(e) => setFilters({...filters, selectedUser: e.target.value})}
-              className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="all">Todos los usuarios</option>
-              {getUniqueUsers().map(user => (
-                <option key={user} value={user}>{user}</option>
-              ))}
-            </select>
+            </div>
           </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Proveedor</label>
-            <select
-              value={filters.selectedProveedor}
-              onChange={(e) => setFilters({...filters, selectedProveedor: e.target.value})}
-              className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="all">Todos los proveedores</option>
-              {getUniqueProveedores().map(proveedor => (
-                <option key={proveedor} value={proveedor}>{proveedor}</option>
-              ))}
-            </select>
-          </div>
-        </div>
+        )}
       </div>
 
       {/* Tarjetas de Resumen */}
