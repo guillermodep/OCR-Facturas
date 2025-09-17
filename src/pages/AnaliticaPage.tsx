@@ -112,38 +112,96 @@ export const AnaliticaPage: React.FC = () => {
     return Array.from(proveedoresList).sort();
   };
 
+  // Función para calcular indicadores de cambio
+  const getChangeIndicators = () => {
+    const filteredInvoices = getFilteredInvoices();
+    const allInvoices = invoices;
+
+    // Calcular métricas del período actual
+    const currentGasto = filteredInvoices.reduce((acc, invoice) => acc + (invoice.items?.reduce((itemAcc, item) => itemAcc + item.neto, 0) || 0), 0);
+    const currentFacturas = filteredInvoices.length;
+
+    // Calcular métricas del período anterior (último mes/anterior período)
+    const { start: currentStart } = getDateRange();
+    let previousStart: Date | null = null;
+    let previousEnd: Date | null = null;
+
+    if (currentStart) {
+      if (filters.dateRange === 'month') {
+        previousStart = new Date(currentStart.getFullYear(), currentStart.getMonth() - 1, 1);
+        previousEnd = new Date(currentStart.getFullYear(), currentStart.getMonth(), 0);
+      } else if (filters.dateRange === 'quarter') {
+        const currentQuarter = Math.floor(currentStart.getMonth() / 3);
+        const prevQuarterStart = new Date(currentStart.getFullYear(), (currentQuarter - 1) * 3, 1);
+        const prevQuarterEnd = new Date(currentStart.getFullYear(), currentQuarter * 3, 0);
+        previousStart = prevQuarterStart;
+        previousEnd = prevQuarterEnd;
+      } else if (filters.dateRange === 'year') {
+        previousStart = new Date(currentStart.getFullYear() - 1, 0, 1);
+        previousEnd = new Date(currentStart.getFullYear() - 1, 11, 31);
+      }
+    }
+
+    // Calcular métricas del período anterior
+    let previousGasto = 0;
+    let previousFacturas = 0;
+
+    if (previousStart && previousEnd) {
+      const previousInvoices = allInvoices.filter(invoice => {
+        const invoiceDate = new Date(invoice.fecha_factura);
+        return invoiceDate >= previousStart! && invoiceDate <= previousEnd!;
+      });
+
+      previousGasto = previousInvoices.reduce((acc, invoice) => acc + (invoice.items?.reduce((itemAcc, item) => itemAcc + item.neto, 0) || 0), 0);
+      previousFacturas = previousInvoices.length;
+    }
+
+    // Calcular porcentajes de cambio
+    const gastoChange = previousGasto > 0 ? ((currentGasto - previousGasto) / previousGasto) * 100 : 0;
+    const facturasChange = previousFacturas > 0 ? ((currentFacturas - previousFacturas) / previousFacturas) * 100 : 0;
+
+    return {
+      gastoChange,
+      facturasChange,
+      currentGasto,
+      currentFacturas,
+      previousGasto,
+      previousFacturas
+    };
+  };
+
+  // Usar facturas filtradas en lugar de todas las facturas
+  const filteredInvoices = getFilteredInvoices();
+
+  const totalGasto = filteredInvoices.reduce((acc, invoice) => acc + (invoice.items?.reduce((itemAcc, item) => itemAcc + item.neto, 0) || 0), 0);
+  const gastoPorProveedor = filteredInvoices.reduce((acc, invoice) => {
+    const gastoFactura = invoice.items?.reduce((itemAcc, item) => itemAcc + item.neto, 0) || 0;
+    acc[invoice.proveedor] = (acc[invoice.proveedor] || 0) + gastoFactura;
+    return acc;
+  }, {} as { [key: string]: number });
+
+  const gastoPorCliente = filteredInvoices.reduce((acc, invoice) => {
+    const gastoFactura = invoice.items?.reduce((itemAcc, item) => itemAcc + item.neto, 0) || 0;
+    acc[invoice.cliente] = (acc[invoice.cliente] || 0) + gastoFactura;
+    return acc;
+  }, {} as { [key: string]: number });
+
+  const topArticulos = filteredInvoices.flatMap(inv => inv.items || []).reduce((acc, item) => {
+    acc[item.descripcion] = (acc[item.descripcion] || 0) + item.neto;
+    return acc;
+  }, {} as { [key: string]: number });
+
+  const allItems = filteredInvoices.flatMap(inv => inv.items || []);
+  const uniqueItems = Array.from(new Map(allItems.map(item => [item.descripcion, item])).values());
+
+  const topMasCaros = [...uniqueItems].sort((a, b) => b.precioUd - a.precioUd).slice(0, 10);
+  const topMayorIva = [...uniqueItems].sort((a, b) => b.iva - a.iva).slice(0, 10);
+
+  const proveedoresActivos = new Set(filteredInvoices.map(inv => inv.proveedor));
+  const articulosComprados = new Set(allItems.map(item => item.descripcion));
+
   const analyticsData = useMemo(() => {
     if (loading || error || invoices.length === 0) return null;
-
-    // Usar facturas filtradas en lugar de todas las facturas
-    const filteredInvoices = getFilteredInvoices();
-
-    const totalGasto = filteredInvoices.reduce((acc, invoice) => acc + (invoice.items?.reduce((itemAcc, item) => itemAcc + item.neto, 0) || 0), 0);
-    const gastoPorProveedor = filteredInvoices.reduce((acc, invoice) => {
-      const gastoFactura = invoice.items?.reduce((itemAcc, item) => itemAcc + item.neto, 0) || 0;
-      acc[invoice.proveedor] = (acc[invoice.proveedor] || 0) + gastoFactura;
-      return acc;
-    }, {} as { [key: string]: number });
-
-    const gastoPorCliente = filteredInvoices.reduce((acc, invoice) => {
-      const gastoFactura = invoice.items?.reduce((itemAcc, item) => itemAcc + item.neto, 0) || 0;
-      acc[invoice.cliente] = (acc[invoice.cliente] || 0) + gastoFactura;
-      return acc;
-    }, {} as { [key: string]: number });
-
-    const topArticulos = filteredInvoices.flatMap(inv => inv.items || []).reduce((acc, item) => {
-      acc[item.descripcion] = (acc[item.descripcion] || 0) + item.neto;
-      return acc;
-    }, {} as { [key: string]: number });
-
-    const allItems = filteredInvoices.flatMap(inv => inv.items || []);
-    const uniqueItems = Array.from(new Map(allItems.map(item => [item.descripcion, item])).values());
-
-    const topMasCaros = [...uniqueItems].sort((a, b) => b.precioUd - a.precioUd).slice(0, 10);
-    const topMayorIva = [...uniqueItems].sort((a, b) => b.iva - a.iva).slice(0, 10);
-
-    const proveedoresActivos = new Set(filteredInvoices.map(inv => inv.proveedor));
-    const articulosComprados = new Set(allItems.map(item => item.descripcion));
 
     return {
       totalGasto,
@@ -156,6 +214,10 @@ export const AnaliticaPage: React.FC = () => {
       topMayorIva,
       filteredInvoicesCount: filteredInvoices.length,
     };
+  }, [loading, error, invoices, filters]);
+
+  const changeIndicators = getChangeIndicators();
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -283,7 +345,21 @@ export const AnaliticaPage: React.FC = () => {
           <div>
             <p className="text-slate-500 text-sm font-medium">Gasto Total</p>
             <p className="text-2xl font-bold text-slate-800">{analyticsData.totalGasto?.toFixed(2) ?? '0.00'} €</p>
-            <p className="text-xs text-gray-500">Facturas filtradas: {analyticsData.filteredInvoicesCount}</p>
+            <div className="flex items-center gap-2 mt-1">
+              {changeIndicators.gastoChange !== 0 && (
+                <>
+                  {changeIndicators.gastoChange > 0 ? (
+                    <TrendingUp className="h-4 w-4 text-green-500" />
+                  ) : (
+                    <TrendingDown className="h-4 w-4 text-red-500" />
+                  )}
+                  <span className={`text-sm font-medium ${changeIndicators.gastoChange > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {changeIndicators.gastoChange > 0 ? '+' : ''}{changeIndicators.gastoChange.toFixed(1)}%
+                  </span>
+                </>
+              )}
+              <p className="text-xs text-gray-500">vs período anterior</p>
+            </div>
           </div>
         </div>
         <div className="bg-white p-6 rounded-xl shadow-md flex items-center space-x-4">
@@ -291,7 +367,21 @@ export const AnaliticaPage: React.FC = () => {
           <div>
             <p className="text-slate-500 text-sm font-medium">Facturas Totales</p>
             <p className="text-2xl font-bold text-slate-800">{analyticsData.filteredInvoicesCount}</p>
-            <p className="text-xs text-gray-500">De {invoices.length} total</p>
+            <div className="flex items-center gap-2 mt-1">
+              {changeIndicators.facturasChange !== 0 && (
+                <>
+                  {changeIndicators.facturasChange > 0 ? (
+                    <TrendingUp className="h-4 w-4 text-green-500" />
+                  ) : (
+                    <TrendingDown className="h-4 w-4 text-red-500" />
+                  )}
+                  <span className={`text-sm font-medium ${changeIndicators.facturasChange > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {changeIndicators.facturasChange > 0 ? '+' : ''}{changeIndicators.facturasChange.toFixed(1)}%
+                  </span>
+                </>
+              )}
+              <p className="text-xs text-gray-500">De {invoices.length} total</p>
+            </div>
           </div>
         </div>
         <div className="bg-white p-6 rounded-xl shadow-md flex items-center space-x-4">
@@ -321,7 +411,7 @@ export const AnaliticaPage: React.FC = () => {
         <div className="bg-white p-6 rounded-xl shadow-md">
           <h2 className="text-xl font-semibold text-slate-700 mb-4">Gasto por Proveedor</h2>
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={analyticsData?.gastoPorProveedor.slice(0, 7)} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+            <BarChart data={analyticsData.gastoPorProveedor.slice(0, 7)} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" />
               <YAxis />
@@ -334,7 +424,7 @@ export const AnaliticaPage: React.FC = () => {
         <div className="bg-white p-6 rounded-xl shadow-md">
           <h2 className="text-xl font-semibold text-slate-700 mb-4">Gasto por Cliente</h2>
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={analyticsData?.gastoPorCliente.slice(0, 7)} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+            <BarChart data={analyticsData.gastoPorCliente.slice(0, 7)} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" />
               <YAxis />
@@ -351,10 +441,18 @@ export const AnaliticaPage: React.FC = () => {
         <div className="bg-white p-6 rounded-xl shadow-md xl:col-span-1">
           <h2 className="text-xl font-semibold text-slate-700 mb-4">Top 10 Artículos por Gasto</h2>
           <table className="w-full text-sm text-left text-gray-500">
-            <thead className="text-xs text-gray-700 uppercase bg-gray-50"><tr><th scope="col" className="px-6 py-3">Artículo</th><th scope="col" className="px-6 py-3">Gasto</th></tr></thead>
+            <thead className="text-xs text-gray-700 uppercase bg-gray-50">
+              <tr>
+                <th scope="col" className="px-6 py-3">Artículo</th>
+                <th scope="col" className="px-6 py-3">Gasto</th>
+              </tr>
+            </thead>
             <tbody>
-              {analyticsData?.topArticulos.map((item) => (
-                <tr key={item.name} className="bg-white border-b"><td className="px-6 py-4">{item.name}</td><td className="px-6 py-4">{item.Gasto.toFixed(2)} €</td></tr>
+              {analyticsData.topArticulos.map((item: any) => (
+                <tr key={item.name} className="bg-white border-b">
+                  <td className="px-6 py-4">{item.name}</td>
+                  <td className="px-6 py-4">{item.Gasto.toFixed(2)} €</td>
+                </tr>
               ))}
             </tbody>
           </table>
@@ -362,10 +460,18 @@ export const AnaliticaPage: React.FC = () => {
         <div className="bg-white p-6 rounded-xl shadow-md xl:col-span-1">
           <h2 className="text-xl font-semibold text-slate-700 mb-4">Top 10 Artículos más Caros</h2>
           <table className="w-full text-sm text-left text-gray-500">
-            <thead className="text-xs text-gray-700 uppercase bg-gray-50"><tr><th scope="col" className="px-6 py-3">Artículo</th><th scope="col" className="px-6 py-3">Precio Unitario</th></tr></thead>
+            <thead className="text-xs text-gray-700 uppercase bg-gray-50">
+              <tr>
+                <th scope="col" className="px-6 py-3">Artículo</th>
+                <th scope="col" className="px-6 py-3">Precio Unitario</th>
+              </tr>
+            </thead>
             <tbody>
-              {analyticsData?.topMasCaros.map((item) => (
-                <tr key={item.descripcion} className="bg-white border-b"><td className="px-6 py-4">{item.descripcion}</td><td className="px-6 py-4">{item.precioUd.toFixed(2)} €</td></tr>
+              {analyticsData.topMasCaros.map((item: any) => (
+                <tr key={item.descripcion} className="bg-white border-b">
+                  <td className="px-6 py-4">{item.descripcion}</td>
+                  <td className="px-6 py-4">{item.precioUd.toFixed(2)} €</td>
+                </tr>
               ))}
             </tbody>
           </table>
@@ -373,10 +479,18 @@ export const AnaliticaPage: React.FC = () => {
         <div className="bg-white p-6 rounded-xl shadow-md xl:col-span-1">
           <h2 className="text-xl font-semibold text-slate-700 mb-4">Top 10 Artículos por IVA</h2>
           <table className="w-full text-sm text-left text-gray-500">
-            <thead className="text-xs text-gray-700 uppercase bg-gray-50"><tr><th scope="col" className="px-6 py-3">Artículo</th><th scope="col" className="px-6 py-3">% IVA</th></tr></thead>
+            <thead className="text-xs text-gray-700 uppercase bg-gray-50">
+              <tr>
+                <th scope="col" className="px-6 py-3">Artículo</th>
+                <th scope="col" className="px-6 py-3">% IVA</th>
+              </tr>
+            </thead>
             <tbody>
-              {analyticsData?.topMayorIva.map((item) => (
-                <tr key={item.descripcion} className="bg-white border-b"><td className="px-6 py-4">{item.descripcion}</td><td className="px-6 py-4">{item.iva} %</td></tr>
+              {analyticsData.topMayorIva.map((item: any) => (
+                <tr key={item.descripcion} className="bg-white border-b">
+                  <td className="px-6 py-4">{item.descripcion}</td>
+                  <td className="px-6 py-4">{item.iva} %</td>
+                </tr>
               ))}
             </tbody>
           </table>
