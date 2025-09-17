@@ -50,6 +50,10 @@ export function FacturasProcesadasPage() {
     logLevel: 'info' as 'none' | 'info' | 'debug'
   });
 
+  // Estado para verificar si el usuario actual es admin
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [currentUsername, setCurrentUsername] = useState<string>('');
+
   // Función genérica para búsquedas con cache
   const buscarConCache = useCallback((tipo: 'proveedor' | 'articulo' | 'delegacion', clave: string, funcionBusqueda: Function) => {
     const cacheKey = `${tipo}:${clave.toLowerCase().trim()}`;
@@ -661,15 +665,17 @@ export function FacturasProcesadasPage() {
     const fetchInvoices = async () => {
       try {
         setLoading(true);
-        const { data, error } = await supabase
-          .from('processed_invoices')
-          .select('*')
-          .order('created_at', { ascending: false });
-
-        if (error) {
-          throw error;
+        
+        let query = supabase.from('processed_invoices').select('*').order('created_at', { ascending: false });
+        
+        // Si no es admin, filtrar por usuario actual
+        if (!isAdmin && currentUsername) {
+          query = query.eq('usuario', currentUsername);
         }
-
+        
+        const { data, error } = await query;
+        
+        if (error) throw error;
         setInvoices(data || []);
       } catch (err: any) {
         setError(err.message);
@@ -698,7 +704,7 @@ export function FacturasProcesadasPage() {
 
     fetchInvoices();
     fetchMaestros();
-  }, []);
+  }, [isAdmin, currentUsername]);
 
   if (loading) {
     return <div className="flex justify-center items-center h-screen">Cargando facturas...</div>;
