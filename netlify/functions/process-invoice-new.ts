@@ -191,6 +191,7 @@ export const handler: Handler = async (event) => {
     }
 
     const mimeType = body.mimeType || "image/jpeg";
+    const usuario = body.usuario || null; // ✅ Agregar usuario desde el frontend
     let allInvoicesData: any[] = [];
 
     try {
@@ -242,6 +243,7 @@ export const handler: Handler = async (event) => {
             proveedor: invoiceData.proveedor,
             cliente: invoiceData.cliente,
             items: invoiceData.items,
+            usuario: usuario, // ✅ Agregar usuario a la inserción
           });
 
         if (dbError) {

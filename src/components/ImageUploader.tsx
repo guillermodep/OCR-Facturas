@@ -117,7 +117,11 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onSingleImageProce
       const response = await fetch('/.netlify/functions/process-invoice-new', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageBase64: dataUrl, mimeType: image.file.type }),
+        body: JSON.stringify({ 
+          imageBase64: dataUrl, 
+          mimeType: image.file.type,
+          usuario: sessionStorage.getItem('username') // ✅ Enviar usuario a Netlify function
+        }),
         signal: controller.signal,
       });
 

@@ -9,121 +9,35 @@ export function CargarFacturasPage() {
 
 
   const handleSingleImageProcessed = async (data: any) => {
-    console.log('🔄 Nueva factura procesada:', data);
-    console.log('🔍 DEBUG - Estado del sessionStorage al procesar factura:');
-    console.log('   sessionStorage completo:', Object.keys(sessionStorage));
-    console.log('   username en sessionStorage:', sessionStorage.getItem('username'));
-    console.log('   isAuthenticated en sessionStorage:', sessionStorage.getItem('isAuthenticated'));
+    console.log('🔄 Nueva factura procesada por Netlify function:', data);
+    console.log('📋 Datos de la factura procesada:');
+    console.log('   - numero_factura:', data.data?.proveedor || data.proveedor || '');
+    console.log('   - cliente:', data.data?.cliente || data.cliente || '');
+    console.log('   - items_count:', data.data?.items?.length || data.items?.length || 0);
 
-    try {
-      // Obtener el usuario actual del sessionStorage
-      const currentUsername = sessionStorage.getItem('username');
-      console.log('👤 Usuario obtenido del sessionStorage:', currentUsername);
+    // ✅ La factura YA está guardada por la Netlify function con usuario correcto
+    // ✅ NO necesitamos guardarla nuevamente para evitar duplicados
 
-      if (!currentUsername) {
-        console.error('❌ ERROR CRÍTICO: No se pudo obtener el usuario del sessionStorage');
-        console.error('❌ sessionStorage completo en el momento del error:', Object.keys(sessionStorage));
-        console.error('❌ Detalles del sessionStorage:', {
-          username: sessionStorage.getItem('username'),
-          isAuthenticated: sessionStorage.getItem('isAuthenticated'),
-          length: sessionStorage.length
-        });
-        alert('Error crítico: No se pudo obtener el usuario actual. Asegúrate de estar logueado.');
-        return;
-      }
-
-      console.log('✅ Usuario validado correctamente:', currentUsername);
-
-      // Preparar los datos de la factura para guardar en la base de datos
-      const invoiceData = {
-        numero_factura: data.data?.proveedor || data.proveedor || '',
-        fecha_factura: data.data?.fecha || data.fecha || '',
-        proveedor: data.data?.proveedor || data.proveedor || '',
-        cliente: data.data?.cliente || data.cliente || '',
-        usuario: currentUsername, // Usuario que procesó la factura
-        items: data.data?.items || data.items || [],
-        created_at: new Date().toISOString()
-      };
-
-      console.log('💾 Intentando guardar factura automáticamente:', invoiceData);
-      console.log('📋 Detalles de la factura a guardar:');
-      console.log('   - numero_factura:', invoiceData.numero_factura);
-      console.log('   - fecha_factura:', invoiceData.fecha_factura);
-      console.log('   - proveedor:', invoiceData.proveedor);
-      console.log('   - cliente:', invoiceData.cliente);
-      console.log('   - usuario:', invoiceData.usuario);
-      console.log('   - items_count:', invoiceData.items.length);
-
-      // Guardar la factura en la base de datos
-      const { data: savedData, error } = await supabase
-        .from('processed_invoices')
-        .insert(invoiceData)
-        .select();
-
-      if (error) {
-        console.error('❌ Error guardando factura automáticamente:', error);
-        console.error('❌ Detalles del error:', {
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code
-        });
-        console.error('❌ Factura que falló:', invoiceData);
-        alert(`Error al guardar la factura: ${error.message}`);
-        return;
-      }
-
-      console.log('✅ Factura guardada exitosamente:', savedData);
-      console.log('📊 Respuesta completa de Supabase:', savedData);
-
-      // Verificar que la factura se guardó con el usuario correcto
-      if (savedData && savedData.length > 0) {
-        const savedInvoice = savedData[0];
-        console.log('🔍 Verificación de la factura guardada:');
-        console.log('   - ID:', savedInvoice.id);
-        console.log('   - numero_factura:', savedInvoice.numero_factura);
-        console.log('   - usuario guardado:', savedInvoice.usuario);
-        console.log('   - created_at:', savedInvoice.created_at);
-
-        if (savedInvoice.usuario !== currentUsername) {
-          console.error('❌ ERROR: La factura se guardó pero con usuario incorrecto!');
-          console.error('   - Usuario esperado:', currentUsername);
-          console.error('   - Usuario guardado:', savedInvoice.usuario);
-        } else {
-          console.log('✅ Usuario guardado correctamente en la base de datos');
-        }
-      }
-
-      // Agregar al estado local para mostrar en el editor (opcional)
-      setProcessedData(prev => {
-        // Verificar si esta factura ya existe para evitar duplicados
-        const exists = prev.some(invoice => {
-          const existingFileName = invoice.fileName || invoice.data?.fileName || '';
-          const newFileName = data.fileName || data.data?.fileName || '';
-          return existingFileName === newFileName && existingFileName !== '';
-        });
-
-        if (exists) {
-          console.log('⚠️ Factura duplicada detectada, omitiendo:', data.fileName);
-          return prev;
-        }
-
-        const newData = [...prev, data];
-        console.log('✅ Factura agregada al editor. Total:', newData.length);
-        return newData;
+    // Agregar al estado local para mostrar en el editor (solo visualización)
+    setProcessedData(prev => {
+      // Verificar si esta factura ya existe para evitar duplicados visuales
+      const exists = prev.some(invoice => {
+        const existingFileName = invoice.fileName || invoice.data?.fileName || '';
+        const newFileName = data.fileName || data.data?.fileName || '';
+        return existingFileName === newFileName && existingFileName !== '';
       });
 
-      // Mostrar mensaje de éxito
-      console.log(`🎉 Factura procesada y guardada exitosamente por usuario: ${currentUsername}`);
+      if (exists) {
+        console.log('⚠️ Factura ya existe en el editor - omitiendo:', data.fileName);
+        return prev;
+      }
 
-    } catch (error: any) {
-      console.error('💥 Error procesando factura:', error);
-      console.error('💥 Detalles del error:', {
-        message: error.message,
-        stack: error.stack
-      });
-      alert(`Error al procesar la factura: ${error.message}`);
-    }
+      const newData = [...prev, data];
+      console.log('✅ Factura agregada al editor visual. Total:', newData.length);
+      return newData;
+    });
+
+    console.log('🎉 Factura procesada correctamente - YA guardada en BD por Netlify function');
   };
 
 
