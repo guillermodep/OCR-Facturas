@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import * as XLSX from 'xlsx';
 import { Button } from '@/components/ui/button';
@@ -37,7 +37,191 @@ export function FacturasProcesadasPage() {
   const [delegaciones, setDelegaciones] = useState<any[]>([]);
   const [loadingMaestros, setLoadingMaestros] = useState(true);
 
-  // Funciones de normalización y búsqueda
+  // Sistema de cache para búsquedas
+  const [searchCache, setSearchCache] = useState<Map<string, any>>(new Map());
+
+  // Configuración dinámica para búsquedas
+  const [configBusqueda, setConfigBusqueda] = useState({
+    umbralSimilitudProveedores: 60,
+    umbralSimilitudArticulos: 75,
+    umbralSimilitudDelegaciones: 60,
+    maxResultadosCache: 1000,
+    usarCache: true,
+    logLevel: 'info' as 'none' | 'info' | 'debug'
+  });
+
+  // Función genérica para búsquedas con cache
+  const buscarConCache = useCallback((tipo: 'proveedor' | 'articulo' | 'delegacion', clave: string, funcionBusqueda: Function) => {
+    const cacheKey = `${tipo}:${clave.toLowerCase().trim()}`;
+    
+    // Verificar si el cache está habilitado
+    if (!configBusqueda.usarCache) {
+      return funcionBusqueda(clave);
+    }
+    
+    // Verificar si ya está en cache
+    if (searchCache.has(cacheKey)) {
+      if (configBusqueda.logLevel !== 'none') {
+        console.log(`💾 [CACHE] Hit para ${tipo}: "${clave}"`);
+      }
+      return searchCache.get(cacheKey);
+    }
+    
+    // Ejecutar búsqueda
+    const resultado = funcionBusqueda(clave);
+    
+    // Guardar en cache (solo si no está vacío y no excede el límite)
+    if (resultado && (resultado.codigo || resultado.subfamilia || resultado) && searchCache.size < configBusqueda.maxResultadosCache) {
+      setSearchCache(prev => new Map(prev.set(cacheKey, resultado)));
+      if (configBusqueda.logLevel !== 'none') {
+        console.log(`💾 [CACHE] Saved para ${tipo}: "${clave}"`);
+      }
+    }
+    
+    return resultado;
+  }, [searchCache, configBusqueda]);
+
+  // Función para actualizar configuración dinámicamente
+  const actualizarConfigBusqueda = useCallback((nuevaConfig: Partial<typeof configBusqueda>) => {
+    setConfigBusqueda(prev => {
+      const updated = { ...prev, ...nuevaConfig };
+      console.log('🔧 [CONFIG] Configuración actualizada:', updated);
+      return updated;
+    });
+  }, []);
+
+  // Función para obtener estadísticas del cache
+  const obtenerEstadisticasCache = useCallback(() => {
+    return {
+      tamanoCache: searchCache.size,
+      limiteCache: configBusqueda.maxResultadosCache,
+      cacheHabilitado: configBusqueda.usarCache,
+      umbrales: {
+        proveedores: configBusqueda.umbralSimilitudProveedores,
+        articulos: configBusqueda.umbralSimilitudArticulos,
+        delegaciones: configBusqueda.umbralSimilitudDelegaciones
+      }
+    };
+  }, [searchCache.size, configBusqueda]);
+
+  // Limpiar cache cuando cambian los datos maestros
+  useEffect(() => {
+    if (!loadingMaestros && (proveedores.length > 0 || articulos.length > 0 || delegaciones.length > 0)) {
+      if (configBusqueda.logLevel !== 'none') {
+        console.log('🧹 [CACHE] Limpiando cache por actualización de datos maestros');
+      }
+      setSearchCache(new Map());
+    }
+  }, [proveedores.length, articulos.length, delegaciones.length, loadingMaestros, configBusqueda.logLevel]);
+
+  // Sistema de patrones avanzados para búsqueda mejorada
+  const patronesAvanzados = {
+    medidas: [
+      /(\d+(?:[,.]\d+)?)\s*(kg|g|l|ml|uds?|cajas?|paquetes?|latas?|botellas?)/gi,
+      /(\d+(?:[,.]\d+)?)\s*x\s*(\d+(?:[,.]\d+)?)\s*(kg|g|l|ml)/gi,
+      /calibre\s*\d+\/\d+/gi,
+      /talla\s*\d+/gi,
+      /peso\s*\d+(?:[,.]\d+)?\s*(kg|g)/gi
+    ],
+    codigos: [
+      /\b\d{6,8}\b/g,  // EAN códigos
+      /\b[A-Z]{2,3}\d{4,6}\b/g,  // Códigos internos
+      /\b\d{2,4}[A-Z]\d{2,4}\b/g,  // Códigos compuestos
+      /\b\d{3,4}\/\d{2,4}\b/g  // Códigos con barras
+    ],
+    calidades: [
+      /\b(premium|extra|primera|segunda|tercera|suprema|gran reserva)\b/gi,
+      /\b(fresco|congelado|refrigerado|ultracongelado)\b/gi,
+      /\b(ecologico|organico|bio)\b/gi,
+      /\b(importado|nacional|local)\b/gi
+    ],
+    formatos: [
+      /\b(filete|entero|medias|cuartos|entero)\b/gi,
+      /\b(cabeza|cola|aleta|espina)\b/gi,
+      /\b(pulpa|entero|sin piel|con piel)\b/gi
+    ]
+  };
+
+  // Función para detectar patrones en texto
+  const detectarPatrones = useCallback((texto: string) => {
+    const resultados = {
+      medidas: [] as string[],
+      codigos: [] as string[],
+      calidades: [] as string[],
+      formatos: [] as string[]
+    };
+
+    Object.entries(patronesAvanzados).forEach(([categoria, patrones]) => {
+      patrones.forEach(patron => {
+        const matches = texto.match(patron);
+        if (matches) {
+          resultados[categoria as keyof typeof resultados].push(...matches);
+        }
+      });
+    });
+
+    return resultados;
+  }, []);
+
+  // Función para buscar por patrones avanzados
+  const buscarPorPatrones = useCallback((descripcion: string, articulos: any[]) => {
+    if (configBusqueda.logLevel === 'debug') {
+      console.log(`🔍 [PATRONES] Analizando: "${descripcion}"`);
+    }
+
+    const patronesDetectados = detectarPatrones(descripcion);
+
+    if (configBusqueda.logLevel === 'debug') {
+      console.log('🎯 [PATRONES] Patrones detectados:', patronesDetectados);
+    }
+
+    // Buscar artículos que coincidan con los patrones
+    let mejorCoincidencia = null;
+    let mejorPuntuacion = 0;
+
+    for (const articulo of articulos) {
+      if (!articulo.descripcion) continue;
+
+      let puntuacionTotal = 0;
+      const patronesArticulo = detectarPatrones(articulo.descripcion);
+
+      // Comparar medidas
+      const medidasComunes = patronesDetectados.medidas.filter(medida =>
+        patronesArticulo.medidas.some(ma => ma.toLowerCase().includes(medida.toLowerCase()))
+      );
+      puntuacionTotal += medidasComunes.length * 20;
+
+      // Comparar códigos
+      const codigosComunes = patronesDetectados.codigos.filter(codigo =>
+        patronesArticulo.codigos.some(ca => ca === codigo)
+      );
+      puntuacionTotal += codigosComunes.length * 30;
+
+      // Comparar calidades
+      const calidadesComunes = patronesDetectados.calidades.filter(calidad =>
+        patronesArticulo.calidades.some(ca => ca.toLowerCase() === calidad.toLowerCase())
+      );
+      puntuacionTotal += calidadesComunes.length * 15;
+
+      // Comparar formatos
+      const formatosComunes = patronesDetectados.formatos.filter(formato =>
+        patronesArticulo.formatos.some(fa => fa.toLowerCase() === formato.toLowerCase())
+      );
+      puntuacionTotal += formatosComunes.length * 10;
+
+      if (puntuacionTotal > mejorPuntuacion) {
+        mejorPuntuacion = puntuacionTotal;
+        mejorCoincidencia = articulo;
+      }
+    }
+
+    if (configBusqueda.logLevel === 'debug') {
+      console.log(`📊 [PATRONES] Mejor puntuación: ${mejorPuntuacion}`);
+    }
+
+    return { articulo: mejorCoincidencia, puntuacion: mejorPuntuacion };
+  }, [configBusqueda.logLevel, detectarPatrones]);
+
   const normalizarTexto = (texto: string): string => {
     if (!texto) return '';
     return texto
@@ -104,163 +288,253 @@ export function FacturasProcesadasPage() {
   };
 
   const buscarDatosProveedor = (nombreProveedor: string): {codigo: string, cif: string} => {
-    if (!nombreProveedor || loadingMaestros) return { codigo: '', cif: '' };
+    return buscarConCache('proveedor', nombreProveedor, (clave: string) => {
+      const startTime = performance.now();
+      console.log(`🔍 [PROVEEDOR] Buscando: "${clave}"`);
 
-    // Regla específica para JOPIAD
-    if (nombreProveedor.toLowerCase().includes('jopiad')) {
-      const jopiadMaster = proveedores.find(p => p.nombre === 'JOSE PEDROSA - JOPIAD');
-      if (jopiadMaster) {
-        return { codigo: jopiadMaster.codigo || '', cif: jopiadMaster.cif || '' };
+      if (!clave || loadingMaestros) {
+        console.log(`⚠️ [PROVEEDOR] Búsqueda cancelada: ${!clave ? 'Nombre vacío' : 'Datos maestros cargando'}`);
+        return { codigo: '', cif: '' };
       }
-    }
 
-    // Regla específica para DDI NEXIA S.L.U. -> NEXIA SL (VICTORIA NUEVO)
-    if (nombreProveedor.toLowerCase().includes('ddi nexia') || 
-        nombreProveedor.toLowerCase().includes('nexia slu') ||
-        nombreProveedor.toUpperCase().includes('DDI NEXIA S.L.U.')) {
-      const nexiaMaster = proveedores.find(p => 
-        p.nombre && p.nombre.toLowerCase().includes('nexia sl') && 
-        p.nombre.toLowerCase().includes('victoria nuevo')
-      );
-      if (nexiaMaster) {
-        return { codigo: nexiaMaster.codigo || '', cif: nexiaMaster.cif || '' };
+      // Regla específica para JOPIAD
+      if (clave.toLowerCase().includes('jopiad')) {
+        console.log(`🎯 [PROVEEDOR] Regla específica JOPIAD detectada`);
+        const jopiadMaster = proveedores.find(p => p.nombre === 'JOSE PEDROSA - JOPIAD');
+        if (jopiadMaster) {
+          console.log(`✅ [PROVEEDOR] JOPIAD encontrado: ${jopiadMaster.nombre} (Código: ${jopiadMaster.codigo})`);
+          return { codigo: jopiadMaster.codigo || '', cif: jopiadMaster.cif || '' };
+        } else {
+          console.log(`❌ [PROVEEDOR] JOPIAD no encontrado en maestro`);
+        }
       }
-    }
 
-    const nombreSinParentesis = nombreProveedor.replace(/\s*\([^)]*\)\s*/g, ' ').trim();
-    const nombreCorregido = corregirErroresTipograficos(nombreSinParentesis);
-    const nombreLimpio = limpiarSufijosEmpresas(nombreCorregido);
-    const nombreNormalizado = normalizarTexto(nombreLimpio);
-
-    // 1. Búsqueda por inclusión directa (la más fiable)
-    for (const proveedor of proveedores) {
-      if (!proveedor.nombre) continue;
-      const nombreProveedorNormalizado = normalizarTexto(limpiarSufijosEmpresas(corregirErroresTipograficos(proveedor.nombre)));
-      if (nombreProveedorNormalizado.includes(nombreNormalizado)) {
-        return { codigo: proveedor.codigo || '', cif: proveedor.cif || '' };
+      // Regla específica para DDI NEXIA S.L.U. -> NEXIA SL (VICTORIA NUEVO)
+      if (clave.toLowerCase().includes('ddi nexia') || 
+          clave.toLowerCase().includes('nexia slu') ||
+          clave.toUpperCase().includes('DDI NEXIA S.L.U.')) {
+        console.log(`🎯 [PROVEEDOR] Regla específica NEXIA detectada`);
+        const nexiaMaster = proveedores.find(p => 
+          p.nombre && p.nombre.toLowerCase().includes('nexia sl') && 
+          p.nombre.toLowerCase().includes('victoria nuevo')
+        );
+        if (nexiaMaster) {
+          console.log(`✅ [PROVEEDOR] NEXIA encontrado: ${nexiaMaster.nombre} (Código: ${nexiaMaster.codigo})`);
+          return { codigo: nexiaMaster.codigo || '', cif: nexiaMaster.cif || '' };
+        } else {
+          console.log(`❌ [PROVEEDOR] NEXIA no encontrado en maestro`);
+        }
       }
-    }
 
-    // 2. Si falla, recurrir a similitud
-    let mejorCoincidencia = null;
-    let mejorPuntuacion = 0;
-    for (const proveedor of proveedores) {
-      if (!proveedor.nombre) continue;
-      const nombreProveedorNormalizado = normalizarTexto(limpiarSufijosEmpresas(corregirErroresTipograficos(proveedor.nombre)));
-      const similitud = calcularSimilitud(nombreNormalizado, nombreProveedorNormalizado);
-      if (similitud > mejorPuntuacion) {
-        mejorPuntuacion = similitud;
-        mejorCoincidencia = proveedor;
+      const nombreSinParentesis = clave.replace(/\s*\([^)]*\)\s*/g, ' ').trim();
+      const nombreCorregido = corregirErroresTipograficos(nombreSinParentesis);
+      const nombreLimpio = limpiarSufijosEmpresas(nombreCorregido);
+      const nombreNormalizado = normalizarTexto(nombreLimpio);
+
+      console.log(`📝 [PROVEEDOR] Preprocesamiento:`);
+      console.log(`   Original: "${clave}"`);
+      console.log(`   Sin paréntesis: "${nombreSinParentesis}"`);
+      console.log(`   Corregido: "${nombreCorregido}"`);
+      console.log(`   Limpio: "${nombreLimpio}"`);
+      console.log(`   Normalizado: "${nombreNormalizado}"`);
+
+      // 1. Búsqueda por inclusión directa (la más fiable)
+      console.log(`🔎 [PROVEEDOR] Buscando por inclusión directa...`);
+      for (const proveedor of proveedores) {
+        if (!proveedor.nombre) continue;
+        const nombreProveedorNormalizado = normalizarTexto(limpiarSufijosEmpresas(corregirErroresTipograficos(proveedor.nombre)));
+        if (nombreProveedorNormalizado.includes(nombreNormalizado)) {
+          const endTime = performance.now();
+          console.log(`✅ [PROVEEDOR] Encontrado por inclusión: "${proveedor.nombre}" (Código: ${proveedor.codigo}) - ${Math.round(endTime - startTime)}ms`);
+          return { codigo: proveedor.codigo || '', cif: proveedor.cif || '' };
+        }
       }
-    }
 
-    return mejorPuntuacion > 60 && mejorCoincidencia 
-      ? { codigo: mejorCoincidencia.codigo || '', cif: mejorCoincidencia.cif || '' } 
-      : { codigo: '', cif: '' };
+      // 2. Si falla, recurrir a similitud
+      console.log(`🔄 [PROVEEDOR] Inclusión falló, probando similitud...`);
+      let mejorCoincidencia = null;
+      let mejorPuntuacion = 0;
+      for (const proveedor of proveedores) {
+        if (!proveedor.nombre) continue;
+        const nombreProveedorNormalizado = normalizarTexto(limpiarSufijosEmpresas(corregirErroresTipograficos(proveedor.nombre)));
+        const similitud = calcularSimilitud(nombreNormalizado, nombreProveedorNormalizado);
+        if (similitud > mejorPuntuacion) {
+          mejorPuntuacion = similitud;
+          mejorCoincidencia = proveedor;
+        }
+      }
+
+      const endTime = performance.now();
+      if (mejorPuntuacion > configBusqueda.umbralSimilitudProveedores && mejorCoincidencia) {
+        console.log(`✅ [PROVEEDOR] Encontrado por similitud: "${mejorCoincidencia.nombre}" (Puntuación: ${mejorPuntuacion}%) - ${Math.round(endTime - startTime)}ms`);
+        return { codigo: mejorCoincidencia.codigo || '', cif: mejorCoincidencia.cif || '' };
+      } else {
+        console.log(`❌ [PROVEEDOR] No encontrado. Mejor similitud: ${mejorPuntuacion}% ${mejorCoincidencia ? `con "${mejorCoincidencia.nombre}"` : ''} - ${Math.round(endTime - startTime)}ms`);
+        return { codigo: '', cif: '' };
+      }
+    });
   };
 
   const buscarDelegacion = (nombreCliente: string): string => {
-    if (!nombreCliente || loadingMaestros) return '';
+    return buscarConCache('delegacion', nombreCliente, (clave: string) => {
+      const startTime = performance.now();
+      console.log(`🔍 [DELEGACIÓN] Buscando: "${clave}"`);
 
-    const normalizarNombreCompleto = (nombre: string) => {
-      if (!nombre) return '';
-      const corregido = corregirErroresTipograficos(nombre);
-      const conSufijos = normalizarSufijosLegales(corregido);
-      const limpio = limpiarSufijosEmpresas(conSufijos);
-      return normalizarTexto(limpio);
-    };
+      if (!clave || loadingMaestros) {
+        console.log(`⚠️ [DELEGACIÓN] Búsqueda cancelada: ${!clave ? 'Nombre vacío' : 'Datos maestros cargando'}`);
+        return '';
+      }
 
-    const nombreNormalizado = normalizarNombreCompleto(nombreCliente);
-    let mejorCoincidencia = '';
-    let mejorPuntuacion = 0;
+      const normalizarNombreCompleto = (nombre: string) => {
+        if (!nombre) return '';
+        const corregido = corregirErroresTipograficos(nombre);
+        const conSufijos = normalizarSufijosLegales(corregido);
+        const limpio = limpiarSufijosEmpresas(conSufijos);
+        return normalizarTexto(limpio);
+      };
 
-    for (const delegacion of delegaciones) {
-      let puntuacionTotal = 0;
-      if (delegacion.razon_social) {
-        const razonSocialNormalizada = normalizarNombreCompleto(delegacion.razon_social);
-        if (razonSocialNormalizada === nombreNormalizado) return delegacion.delegacion || delegacion.codigo || '';
-        puntuacionTotal += calcularSimilitud(nombreNormalizado, razonSocialNormalizada);
+      const nombreNormalizado = normalizarNombreCompleto(clave);
+      let mejorCoincidencia = '';
+      let mejorPuntuacion = 0;
+
+      console.log(`📝 [DELEGACIÓN] Preprocesamiento:`);
+      console.log(`   Original: "${clave}"`);
+      console.log(`   Normalizado: "${nombreNormalizado}"`);
+
+      console.log(`🔎 [DELEGACIÓN] Buscando por similitud...`);
+      for (const delegacion of delegaciones) {
+        let puntuacionTotal = 0;
+        if (delegacion.razon_social) {
+          const razonSocialNormalizada = normalizarNombreCompleto(delegacion.razon_social);
+          if (razonSocialNormalizada === nombreNormalizado) {
+            const endTime = performance.now();
+            console.log(`✅ [DELEGACIÓN] Encontrado por coincidencia exacta: "${delegacion.razon_social}" → "${delegacion.delegacion || delegacion.codigo}" - ${Math.round(endTime - startTime)}ms`);
+            return delegacion.delegacion || delegacion.codigo || '';
+          }
+          puntuacionTotal += calcularSimilitud(nombreNormalizado, razonSocialNormalizada);
+        }
+        if (delegacion.nombre_comercial || delegacion.cliente) {
+          const nombreComercialNormalizado = normalizarNombreCompleto(delegacion.nombre_comercial || delegacion.cliente);
+          if (nombreComercialNormalizado === nombreNormalizado) {
+            const endTime = performance.now();
+            console.log(`✅ [DELEGACIÓN] Encontrado por coincidencia exacta: "${delegacion.nombre_comercial || delegacion.cliente}" → "${delegacion.delegacion || delegacion.codigo}" - ${Math.round(endTime - startTime)}ms`);
+            return delegacion.delegacion || delegacion.codigo || '';
+          }
+          puntuacionTotal += calcularSimilitud(nombreNormalizado, nombreComercialNormalizado) * 0.9;
+        }
+        if (puntuacionTotal > mejorPuntuacion) {
+          mejorPuntuacion = puntuacionTotal;
+          mejorCoincidencia = delegacion.delegacion || delegacion.codigo || '';
+        }
       }
-      if (delegacion.nombre_comercial || delegacion.cliente) {
-        const nombreComercialNormalizado = normalizarNombreCompleto(delegacion.nombre_comercial || delegacion.cliente);
-        if (nombreComercialNormalizado === nombreNormalizado) return delegacion.delegacion || delegacion.codigo || '';
-        puntuacionTotal += calcularSimilitud(nombreNormalizado, nombreComercialNormalizado) * 0.9;
+
+      const endTime = performance.now();
+      if (mejorPuntuacion > configBusqueda.umbralSimilitudDelegaciones) {
+        console.log(`✅ [DELEGACIÓN] Encontrado por similitud: "${mejorCoincidencia}" (Puntuación: ${mejorPuntuacion}%) - ${Math.round(endTime - startTime)}ms`);
+        return mejorCoincidencia;
+      } else {
+        console.log(`❌ [DELEGACIÓN] No encontrado. Mejor similitud: ${mejorPuntuacion}% con "${mejorCoincidencia}" - ${Math.round(endTime - startTime)}ms`);
+        return '';
       }
-      if (puntuacionTotal > mejorPuntuacion) {
-        mejorPuntuacion = puntuacionTotal;
-        mejorCoincidencia = delegacion.delegacion || delegacion.codigo || '';
-      }
-    }
-    return mejorPuntuacion > 60 ? mejorCoincidencia : '';
+    });
   };
 
   const buscarDatosArticulo = (descripcion: string): {codigo: string, subfamilia: string, iva: number} => {
-    if (!descripcion || loadingMaestros) return { codigo: '', subfamilia: '', iva: 0 };
+    return buscarConCache('articulo', descripcion, (clave: string) => {
+      const startTime = performance.now();
+      console.log(`🔍 [ARTÍCULO] Buscando: "${clave}"`);
 
-    // Reglas específicas para artículos complejos (basadas en prefijos)
-    const articleMap: { [key: string]: string } = {
-      'GAMBON 1': 'Gambon 1 10/20 iqf arg bdo 6x(2kg)',
-      'GAMBON 1 100/120 FR ARG BDQ 6X(2KG)': 'Gambon 1 10/20 iqf arg bdo 6x(2kg)',
-      'LANGOSTINO COLA 31/35 PREM S/BLQ ECU 10X(2KG)': 'Langostino colas 31/35prems/blq ecu10x2k',
-      'CALAMAR PAT 4 10/13 BLQ ARG LLN (1X5KG/AP)': 'Calamar pat 4 10/13 blq arg llin (1x5kg)',
-      'CALAMAR DEL CABO EXTRA M 18/25 ENV SUD (1X4KG)': 'Calamar del cabo extra M 18/25 (Limpio)',
-      'CALAMAR PAT 4': 'Calamar pat 4 10/13 blq arg llin (1x5kg)',
-      'BOQUERON VINAGRE': 'Boqueron vinagre bdja 9X(500gr)',
-      'GUISANTES CN 4X(2,5KG)':'Guisantes C.nav 4x(2,5kg)',
-      'AAFR SALMON 5/6':'AAFR salmon 5/6 1x6kg ap',
-      'CACAHUETES':'Cacahuetes Garrapiñados',
-      'HAMBURGUE TERNERA':'Hamburguesa ternera',
-      'ENSALADA MEZCLUM FLORETTE':'Ensalada mezclum 500 gr. Florette',
-      'BURGER POTATO ROLLS 100G':'Burger potato rolls 100gr (c/18u)',
-      'MANTEQUILLA 82%MG CAMPINA 10K+':'Mantequilla 82 10Kgs',
-      'MASCARPONE 500 GR':'Mascarpone 500Gr',
-      'CREMETTE':'Cremette 30 cubo 3,5kg',
-      'VICTORIA BARRIL 50L':'Barril 50L Victoria',
-    };
+      if (!clave || loadingMaestros) {
+        console.log(`⚠️ [ARTÍCULO] Búsqueda cancelada: ${!clave ? 'Descripción vacía' : 'Datos maestros cargando'}`);
+        return { codigo: '', subfamilia: '', iva: 0 };
+      }
 
-    for (const key in articleMap) {
-      if (descripcion.trim().startsWith(key)) {
-        const mappedDescription = articleMap[key];
-        const targetArticle = articulos.find(a => a.descripcion === mappedDescription);
-        if (targetArticle) {
-          return { codigo: targetArticle.codigo || '', subfamilia: targetArticle.subfamilia || '', iva: targetArticle.iva || 0 };
+      // Reglas específicas para artículos complejos (basadas en prefijos)
+      const articleMap: { [key: string]: string } = {
+        'GAMBON 1': 'Gambon 1 10/20 iqf arg bdo 6x(2kg)',
+        'GAMBON 1 100/120 FR ARG BDQ 6X(2KG)': 'Gambon 1 10/20 iqf arg bdo 6x(2kg)',
+        'LANGOSTINO COLA 31/35 PREM S/BLQ ECU 10X(2KG)': 'Langostino colas 31/35prems/blq ecu10x2k',
+        'CALAMAR PAT 4 10/13 BLQ ARG LLN (1X5KG/AP)': 'Calamar pat 4 10/13 blq arg llin (1x5kg)',
+        'CALAMAR DEL CABO EXTRA M 18/25 ENV SUD (1X4KG)': 'Calamar del cabo extra M 18/25 (Limpio)',
+        'CALAMAR PAT 4': 'Calamar pat 4 10/13 blq arg llin (1x5kg)',
+        'BOQUERON VINAGRE': 'Boqueron vinagre bdja 9X(500gr)',
+        'GUISANTES CN 4X(2,5KG)':'Guisantes C.nav 4x(2,5kg)',
+        'AAFR SALMON 5/6':'AAFR salmon 5/6 1x6kg ap',
+        'CACAHUETES':'Cacahuetes Garrapiñados',
+        'HAMBURGUE TERNERA':'Hamburguesa ternera',
+        'ENSALADA MEZCLUM FLORETTE':'Ensalada mezclum 500 gr. Florette',
+        'BURGER POTATO ROLLS 100G':'Burger potato rolls 100gr (c/18u)',
+        'MANTEQUILLA 82%MG CAMPINA 10K+':'Mantequilla 82 10Kgs',
+        'MASCARPONE 500 GR':'Mascarpone 500Gr',
+        'CREMETTE':'Cremette 30 cubo 3,5kg',
+        'VICTORIA BARRIL 50L':'Barril 50L Victoria',
+      };
+
+      for (const key in articleMap) {
+        if (clave.trim().startsWith(key)) {
+          console.log(`🎯 [ARTÍCULO] Regla específica detectada: "${key}" → "${articleMap[key]}"`);
+          const mappedDescription = articleMap[key];
+          const targetArticle = articulos.find(a => a.descripcion === mappedDescription);
+          if (targetArticle) {
+            const endTime = performance.now();
+            console.log(`✅ [ARTÍCULO] Mapeo exitoso: "${targetArticle.descripcion}" (Código: ${targetArticle.codigo}) - ${Math.round(endTime - startTime)}ms`);
+            return { codigo: targetArticle.codigo || '', subfamilia: targetArticle.subfamilia || '', iva: targetArticle.iva || 0 };
+          } else {
+            console.log(`❌ [ARTÍCULO] Artículo mapeado no encontrado en maestro: "${mappedDescription}"`);
+          }
+          break; // Se encontró una regla, no seguir buscando
         }
-        break; // Se encontró una regla, no seguir buscando
       }
-    }
 
-    const normalizarDescripcionArticulo = (texto: string) => {
-      if (!texto) return '';
-      return corregirErroresTipograficos(texto)
-        .toLowerCase()
-        .replace(/[^a-z0-9]/g, ''); // Elimina todo lo que no sea letra o número
-    };
+      const normalizarDescripcionArticulo = (texto: string) => {
+        if (!texto) return '';
+        return corregirErroresTipograficos(texto)
+          .toLowerCase()
+          .replace(/[^a-z0-9]/g, ''); // Elimina todo lo que no sea letra o número
+      };
 
-    const descFacturaNormalizada = normalizarDescripcionArticulo(descripcion);
+      const descFacturaNormalizada = normalizarDescripcionArticulo(clave);
 
-    // Búsqueda por coincidencia exacta tras normalización agresiva
-    for (const articulo of articulos) {
-      if (!articulo.descripcion) continue;
-      const descMaestroNormalizada = normalizarDescripcionArticulo(articulo.descripcion);
-      if (descMaestroNormalizada === descFacturaNormalizada) {
-        return { codigo: articulo.codigo || '', subfamilia: articulo.subfamilia || '', iva: articulo.iva || 0 };
+      console.log(`📝 [ARTÍCULO] Preprocesamiento:`);
+      console.log(`   Original: "${clave}"`);
+      console.log(`   Normalizada: "${descFacturaNormalizada}"`);
+
+      // Búsqueda por coincidencia exacta tras normalización agresiva
+      console.log(`🔎 [ARTÍCULO] Buscando coincidencia exacta...`);
+      for (const articulo of articulos) {
+        if (!articulo.descripcion) continue;
+        const descMaestroNormalizada = normalizarDescripcionArticulo(articulo.descripcion);
+        if (descMaestroNormalizada === descFacturaNormalizada) {
+          const endTime = performance.now();
+          console.log(`✅ [ARTÍCULO] Encontrado por coincidencia exacta: "${articulo.descripcion}" (Código: ${articulo.codigo}) - ${Math.round(endTime - startTime)}ms`);
+          return { codigo: articulo.codigo || '', subfamilia: articulo.subfamilia || '', iva: articulo.iva || 0 };
+        }
       }
-    }
-    
-    // Fallback a la búsqueda por similitud con normalización estándar
-    const descripcionNormalizada = normalizarTexto(corregirErroresTipograficos(descripcion));
-    let mejorCoincidencia = null;
-    let mejorPuntuacion = 0;
-    for (const articulo of articulos) {
-      if (!articulo.descripcion) continue;
-      const descripcionArtNormalizada = normalizarTexto(corregirErroresTipograficos(articulo.descripcion));
-      const similitud = calcularSimilitud(descripcionNormalizada, descripcionArtNormalizada);
-      if (similitud > mejorPuntuacion) {
-        mejorPuntuacion = similitud;
-        mejorCoincidencia = articulo;
+
+      // Fallback a la búsqueda por similitud con normalización estándar
+      console.log(`🔄 [ARTÍCULO] Coincidencia exacta falló, probando similitud...`);
+      const descripcionNormalizada = normalizarTexto(corregirErroresTipograficos(clave));
+      let mejorCoincidencia = null;
+      let mejorPuntuacion = 0;
+      for (const articulo of articulos) {
+        if (!articulo.descripcion) continue;
+        const descripcionArtNormalizada = normalizarTexto(corregirErroresTipograficos(articulo.descripcion));
+        const similitud = calcularSimilitud(descripcionNormalizada, descripcionArtNormalizada);
+        if (similitud > mejorPuntuacion) {
+          mejorPuntuacion = similitud;
+          mejorCoincidencia = articulo;
+        }
       }
-    }
-    return mejorPuntuacion > 75 && mejorCoincidencia ? { codigo: mejorCoincidencia.codigo || '', subfamilia: mejorCoincidencia.subfamilia || '', iva: mejorCoincidencia.iva || 0 } : { codigo: '', subfamilia: '', iva: 0 };
+
+      const endTime = performance.now();
+      if (mejorPuntuacion > configBusqueda.umbralSimilitudArticulos && mejorCoincidencia) {
+        console.log(`✅ [ARTÍCULO] Encontrado por similitud: "${mejorCoincidencia.descripcion}" (Puntuación: ${mejorPuntuacion}%) - ${Math.round(endTime - startTime)}ms`);
+        return { codigo: mejorCoincidencia.codigo || '', subfamilia: mejorCoincidencia.subfamilia || '', iva: mejorCoincidencia.iva || 0 };
+      } else {
+        console.log(`❌ [ARTÍCULO] No encontrado. Mejor similitud: ${mejorPuntuacion}% ${mejorCoincidencia ? `con "${mejorCoincidencia.descripcion}"` : ''} - ${Math.round(endTime - startTime)}ms`);
+        return { codigo: '', subfamilia: '', iva: 0 };
+      }
+    });
   };
 
   const exportInvoicesToExcel = (invoicesToExport: ProcessedInvoice[]) => {
