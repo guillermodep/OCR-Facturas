@@ -114,6 +114,19 @@ export function FacturasProcesadasPage() {
       }
     }
 
+    // Regla específica para DDI NEXIA S.L.U. -> NEXIA SL (VICTORIA NUEVO)
+    if (nombreProveedor.toLowerCase().includes('ddi nexia') || 
+        nombreProveedor.toLowerCase().includes('nexia slu') ||
+        nombreProveedor.toUpperCase().includes('DDI NEXIA S.L.U.')) {
+      const nexiaMaster = proveedores.find(p => 
+        p.nombre && p.nombre.toLowerCase().includes('nexia sl') && 
+        p.nombre.toLowerCase().includes('victoria nuevo')
+      );
+      if (nexiaMaster) {
+        return { codigo: nexiaMaster.codigo || '', cif: nexiaMaster.cif || '' };
+      }
+    }
+
     const nombreSinParentesis = nombreProveedor.replace(/\s*\([^)]*\)\s*/g, ' ').trim();
     const nombreCorregido = corregirErroresTipograficos(nombreSinParentesis);
     const nombreLimpio = limpiarSufijosEmpresas(nombreCorregido);
