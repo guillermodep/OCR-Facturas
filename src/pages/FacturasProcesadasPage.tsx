@@ -814,11 +814,18 @@ export function FacturasProcesadasPage() {
                   checked={selectedInvoices.includes(invoice.id)}
                   onChange={() => handleSelectionChange(invoice.id)}
                 />
-                <div className="grid grid-cols-2 gap-4 flex-grow">
-                  <div className="flex items-center"><FileText className="mr-2" /> <strong>Nº Factura:</strong> {invoice.numero_factura}</div>
-                  <div className="flex items-center"><Calendar className="mr-2" /> <strong>Fecha:</strong> {invoice.fecha_factura}</div>
-                  <div className="flex items-center"><User className="mr-2" /> <strong>Proveedor:</strong> {invoice.proveedor}</div>
-                  <div className="flex items-center"><Building className="mr-2" /> <strong>Cliente:</strong> {invoice.cliente}</div>
+                <div className="flex-grow">
+                  {/* Primera fila: N° Factura, Fecha, Usuario */}
+                  <div className="grid grid-cols-3 gap-4 mb-2">
+                    <div className="flex items-center"><FileText className="mr-2 h-4 w-4" /> <strong>Nº Factura:</strong> {invoice.numero_factura}</div>
+                    <div className="flex items-center"><Calendar className="mr-2 h-4 w-4" /> <strong>Fecha:</strong> {invoice.fecha_factura}</div>
+                    <div className="flex items-center"><span className="mr-2 h-4 w-4 flex items-center justify-center text-sm font-bold text-blue-600">👤</span> <strong>Usuario:</strong> {(invoice as any).usuario || 'N/A'}</div>
+                  </div>
+                  {/* Segunda fila: Proveedor, Cliente */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="flex items-center"><User className="mr-2 h-4 w-4" /> <strong>Proveedor:</strong> {invoice.proveedor}</div>
+                    <div className="flex items-center"><Building className="mr-2 h-4 w-4" /> <strong>Cliente:</strong> {invoice.cliente}</div>
+                  </div>
                 </div>
               </div>
               <div className="flex items-center">
