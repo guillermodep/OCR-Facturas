@@ -718,8 +718,10 @@ export const ExcelViewer: React.FC<ExcelViewerProps> = ({ processedData }) => {
       // Obtener el usuario actual del sessionStorage
       const currentUsername = sessionStorage.getItem('username');
       if (!currentUsername) {
-        throw new Error('No se pudo obtener el usuario actual');
+        throw new Error('No se pudo obtener el usuario actual. Asegúrate de estar logueado.');
       }
+
+      console.log('👤 Guardando facturas para usuario:', currentUsername);
 
       // Preparar las facturas para guardar
       const invoicesToSave = data.rows.map(row => ({

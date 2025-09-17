@@ -662,28 +662,18 @@ export function FacturasProcesadasPage() {
   };
 
   useEffect(() => {
-    const fetchInvoices = async () => {
-      try {
-        setLoading(true);
-        
-        let query = supabase.from('processed_invoices').select('*').order('created_at', { ascending: false });
-        
-        // Si no es admin, filtrar por usuario actual
-        if (!isAdmin && currentUsername) {
-          query = query.eq('usuario', currentUsername);
-        }
-        
-        const { data, error } = await query;
-        
-        if (error) throw error;
-        setInvoices(data || []);
-      } catch (err: any) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
+    // Verificar permisos del usuario actual al cargar la página
+    const username = sessionStorage.getItem('username');
+    const isAdminUser = username === 'admin';
+    
+    setCurrentUsername(username || '');
+    setIsAdmin(isAdminUser);
+    
+    console.log('🔐 Permisos inicializados:', { username, isAdmin: isAdminUser });
+    
+    fetchInvoices();
+    fetchMaestros();
+  }, []);
     const fetchMaestros = async () => {
       try {
         setLoadingMaestros(true);
@@ -702,9 +692,19 @@ export function FacturasProcesadasPage() {
       }
     };
 
+  useEffect(() => {
+    // Verificar permisos del usuario actual al cargar la página
+    const username = sessionStorage.getItem('username');
+    const isAdminUser = username === 'admin';
+    
+    setCurrentUsername(username || '');
+    setIsAdmin(isAdminUser);
+    
+    console.log('🔐 Permisos inicializados:', { username, isAdmin: isAdminUser });
+    
     fetchInvoices();
     fetchMaestros();
-  }, [isAdmin, currentUsername]);
+  }, []);
 
   if (loading) {
     return <div className="flex justify-center items-center h-screen">Cargando facturas...</div>;
