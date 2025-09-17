@@ -2,9 +2,9 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  LineChart, Line, PieChart, Pie, Cell
+  LineChart, Line, AreaChart, Area
 } from 'recharts';
-import { DollarSign, FileText, Truck, Package, Filter, Calendar, User, TrendingUp, TrendingDown } from 'lucide-react';
+import { DollarSign, FileText, Truck, Package, Filter, TrendingUp, TrendingDown } from 'lucide-react';
 
 interface InvoiceItem {
   codCentral: string;
@@ -25,7 +25,7 @@ interface ProcessedInvoice {
   proveedor: string;
   cliente: string;
   items: InvoiceItem[];
-  usuario?: string; // Agregar campo usuario
+  usuario?: string; 
 }
 
 export const AnaliticaPage: React.FC = () => {
@@ -37,11 +37,11 @@ export const AnaliticaPage: React.FC = () => {
 
   // Estado para filtros
   const [filters, setFilters] = useState({
-    dateRange: 'all', // 'all', 'month', 'quarter', 'year', 'custom'
+    dateRange: 'all', 
     startDate: '',
     endDate: '',
-    selectedUser: 'all', // 'all' o username específico
-    selectedProveedor: 'all', // 'all' o proveedor específico
+    selectedUser: 'all', 
+    selectedProveedor: 'all', 
   });
 
   // Función para obtener fechas según el filtro
@@ -217,6 +217,37 @@ export const AnaliticaPage: React.FC = () => {
   }, [loading, error, invoices, filters]);
 
   const changeIndicators = getChangeIndicators();
+
+  const generateTrendData = () => {
+    const now = new Date();
+    const trendData = [];
+    const allInvoices = invoices;
+
+    // Generar datos para los últimos 12 meses
+    for (let i = 11; i >= 0; i--) {
+      const targetDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const nextMonth = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
+
+      // Filtrar facturas del mes actual
+      const monthInvoices = allInvoices.filter(invoice => {
+        const invoiceDate = new Date(invoice.fecha_factura);
+        return invoiceDate >= targetDate && invoiceDate < nextMonth;
+      });
+
+      // Calcular métricas del mes
+      const gastoTotal = monthInvoices.reduce((acc, invoice) => acc + (invoice.items?.reduce((itemAcc, item) => itemAcc + item.neto, 0) || 0), 0);
+      const facturasCount = monthInvoices.length;
+
+      trendData.push({
+        mes: targetDate.toLocaleDateString('es-ES', { month: 'short', year: '2-digit' }),
+        gasto: Math.round(gastoTotal * 100) / 100,
+        facturas: facturasCount,
+        fechaCompleta: targetDate.toISOString().split('T')[0]
+      });
+    }
+
+    return trendData;
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -406,7 +437,151 @@ export const AnaliticaPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Insights Automáticos - Movidos arriba de los gráficos */}
+      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-xl shadow-md mb-8">
+        <div className="flex items-center gap-4 mb-6">
+          <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+            <span className="text-2xl">💡</span>
+          </div>
+          <div>
+            <h2 className="text-xl font-semibold text-slate-800">Insights Inteligentes</h2>
+            <p className="text-slate-600 text-sm">Análisis automático basado en tus datos</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {analyticsData && (
+            <>
+              {/* Top Proveedor */}
+              <div className="bg-white p-4 rounded-lg shadow-sm">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-lg">🏆</span>
+                  <span className="font-semibold text-gray-700">Top Proveedor</span>
+                </div>
+                <p className="text-sm text-gray-600">
+                  {analyticsData.gastoPorProveedor[0]?.name || 'Sin datos'} representa el {analyticsData.totalGasto > 0 ? ((analyticsData.gastoPorProveedor[0]?.Gasto / analyticsData.totalGasto) * 100).toFixed(1) : 0}% del gasto total
+                </p>
+              </div>
+
+              {/* Artículo más caro */}
+              <div className="bg-white p-4 rounded-lg shadow-sm">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-lg">💰</span>
+                  <span className="font-semibold text-gray-700">Artículo Premium</span>
+                </div>
+                <p className="text-sm text-gray-600">
+                  {analyticsData.topMasCaros[0]?.descripcion || 'Sin datos'} cuesta {analyticsData.topMasCaros[0]?.precioUd?.toFixed(2) || '0'}€/ud
+                </p>
+              </div>
+
+              {/* Tendencia mensual */}
+              <div className="bg-white p-4 rounded-lg shadow-sm">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-lg">📈</span>
+                  <span className="font-semibold text-gray-700">Tendencia</span>
+                </div>
+                <p className="text-sm text-gray-600">
+                  {changeIndicators.gastoChange > 0 ? 'Aumento' : changeIndicators.gastoChange < 0 ? 'Disminución' : 'Estable'} del {Math.abs(changeIndicators.gastoChange).toFixed(1)}% en gastos
+                </p>
+              </div>
+
+              {/* Eficiencia IVA */}
+              <div className="bg-white p-4 rounded-lg shadow-sm">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-lg">📊</span>
+                  <span className="font-semibold text-gray-700">IVA Promedio</span>
+                </div>
+                <p className="text-sm text-gray-600">
+                  IVA promedio: {analyticsData.topMayorIva.length > 0 ? (analyticsData.topMayorIva.reduce((acc: any, item: any) => acc + item.iva, 0) / analyticsData.topMayorIva.length).toFixed(1) : 0}%
+                </p>
+              </div>
+
+              {/* Cobertura de proveedores */}
+              <div className="bg-white p-4 rounded-lg shadow-sm">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-lg">🎯</span>
+                  <span className="font-semibold text-gray-700">Cobertura Proveedores</span>
+                </div>
+                <p className="text-sm text-gray-600">
+                  {analyticsData.proveedoresActivosCount} de {proveedores.length} proveedores activos ({proveedores.length > 0 ? ((analyticsData.proveedoresActivosCount / proveedores.length) * 100).toFixed(1) : 0}%)
+                </p>
+              </div>
+
+              {/* Patrón de compras */}
+              <div className="bg-white p-4 rounded-lg shadow-sm">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-lg">🔄</span>
+                  <span className="font-semibold text-gray-700">Patrón de Compras</span>
+                </div>
+                <p className="text-sm text-gray-600">
+                  {analyticsData.filteredInvoicesCount > 0 ? (analyticsData.totalGasto / analyticsData.filteredInvoicesCount).toFixed(2) : '0'}€ promedio por factura
+                </p>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
       {/* Gráficos */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        {/* Gráfico de Tendencias Temporales */}
+        <div className="bg-white p-6 rounded-xl shadow-md">
+          <h2 className="text-xl font-semibold text-slate-700 mb-4">Tendencia de Gastos (12 meses)</h2>
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={generateTrendData()} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="mes" />
+              <YAxis />
+              <Tooltip
+                formatter={(value: number, name: string) => [
+                  name === 'gasto' ? `${value.toFixed(2)} €` : value,
+                  name === 'gasto' ? 'Gasto' : 'Facturas'
+                ]}
+                labelFormatter={(label) => `Mes: ${label}`}
+              />
+              <Legend />
+              <Line
+                type="monotone"
+                dataKey="gasto"
+                stroke="#8884d8"
+                strokeWidth={3}
+                dot={{ fill: '#8884d8', strokeWidth: 2, r: 4 }}
+                activeDot={{ r: 6 }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Gráfico de Tendencias de Facturas */}
+        <div className="bg-white p-6 rounded-xl shadow-md">
+          <h2 className="text-xl font-semibold text-slate-700 mb-4">Tendencia de Facturas (12 meses)</h2>
+          <ResponsiveContainer width="100%" height={300}>
+            <AreaChart data={generateTrendData()} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="mes" />
+              <YAxis />
+              <Tooltip
+                formatter={(value: number, name: string) => [
+                  name === 'facturas' ? `${value} facturas` : `${value.toFixed(2)} €`,
+                  name === 'facturas' ? 'Facturas' : 'Gasto'
+                ]}
+                labelFormatter={(label) => `Mes: ${label}`}
+              />
+              <Legend />
+              <Area
+                type="monotone"
+                dataKey="facturas"
+                stroke="#00C49F"
+                fill="#00C49F"
+                fillOpacity={0.6}
+                strokeWidth={2}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Gráficos de Comparación */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
         <div className="bg-white p-6 rounded-xl shadow-md">
           <h2 className="text-xl font-semibold text-slate-700 mb-4">Gasto por Proveedor</h2>
@@ -437,7 +612,7 @@ export const AnaliticaPage: React.FC = () => {
       </div>
 
       {/* Tablas de Top 10 */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 mb-8">
         <div className="bg-white p-6 rounded-xl shadow-md xl:col-span-1">
           <h2 className="text-xl font-semibold text-slate-700 mb-4">Top 10 Artículos por Gasto</h2>
           <table className="w-full text-sm text-left text-gray-500">
@@ -494,6 +669,91 @@ export const AnaliticaPage: React.FC = () => {
               ))}
             </tbody>
           </table>
+        </div>
+      </div>
+
+      {/* Insights Automáticos */}
+      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-xl shadow-md mb-8">
+        <div className="flex items-center gap-4 mb-6">
+          <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+            <span className="text-2xl">💡</span>
+          </div>
+          <div>
+            <h2 className="text-xl font-semibold text-slate-800">Insights Inteligentes</h2>
+            <p className="text-slate-600 text-sm">Análisis automático basado en tus datos</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {analyticsData && (
+            <>
+              {/* Top Proveedor */}
+              <div className="bg-white p-4 rounded-lg shadow-sm">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-lg">🏆</span>
+                  <span className="font-semibold text-gray-700">Top Proveedor</span>
+                </div>
+                <p className="text-sm text-gray-600">
+                  {analyticsData.gastoPorProveedor[0]?.name || 'Sin datos'} representa el {analyticsData.totalGasto > 0 ? ((analyticsData.gastoPorProveedor[0]?.Gasto / analyticsData.totalGasto) * 100).toFixed(1) : 0}% del gasto total
+                </p>
+              </div>
+
+              {/* Artículo más caro */}
+              <div className="bg-white p-4 rounded-lg shadow-sm">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-lg">💰</span>
+                  <span className="font-semibold text-gray-700">Artículo Premium</span>
+                </div>
+                <p className="text-sm text-gray-600">
+                  {analyticsData.topMasCaros[0]?.descripcion || 'Sin datos'} cuesta {analyticsData.topMasCaros[0]?.precioUd?.toFixed(2) || '0'}€/ud
+                </p>
+              </div>
+
+              {/* Tendencia mensual */}
+              <div className="bg-white p-4 rounded-lg shadow-sm">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-lg">📈</span>
+                  <span className="font-semibold text-gray-700">Tendencia</span>
+                </div>
+                <p className="text-sm text-gray-600">
+                  {changeIndicators.gastoChange > 0 ? 'Aumento' : changeIndicators.gastoChange < 0 ? 'Disminución' : 'Estable'} del {Math.abs(changeIndicators.gastoChange).toFixed(1)}% en gastos
+                </p>
+              </div>
+
+              {/* Eficiencia IVA */}
+              <div className="bg-white p-4 rounded-lg shadow-sm">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-lg">📊</span>
+                  <span className="font-semibold text-gray-700">IVA Promedio</span>
+                </div>
+                <p className="text-sm text-gray-600">
+                  IVA promedio: {analyticsData.topMayorIva.length > 0 ? (analyticsData.topMayorIva.reduce((acc: any, item: any) => acc + item.iva, 0) / analyticsData.topMayorIva.length).toFixed(1) : 0}%
+                </p>
+              </div>
+
+              {/* Cobertura de proveedores */}
+              <div className="bg-white p-4 rounded-lg shadow-sm">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-lg">🎯</span>
+                  <span className="font-semibold text-gray-700">Cobertura Proveedores</span>
+                </div>
+                <p className="text-sm text-gray-600">
+                  {analyticsData.proveedoresActivosCount} de {proveedores.length} proveedores activos ({proveedores.length > 0 ? ((analyticsData.proveedoresActivosCount / proveedores.length) * 100).toFixed(1) : 0}%)
+                </p>
+              </div>
+
+              {/* Patrón de compras */}
+              <div className="bg-white p-4 rounded-lg shadow-sm">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-lg">🔄</span>
+                  <span className="font-semibold text-gray-700">Patrón de Compras</span>
+                </div>
+                <p className="text-sm text-gray-600">
+                  {analyticsData.filteredInvoicesCount > 0 ? (analyticsData.totalGasto / analyticsData.filteredInvoicesCount).toFixed(2) : '0'}€ promedio por factura
+                </p>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>
