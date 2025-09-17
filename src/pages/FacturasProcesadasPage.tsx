@@ -661,18 +661,24 @@ export function FacturasProcesadasPage() {
     }
   };
 
-  const fetchInvoices = async () => {
+  const fetchInvoices = async (userOverride?: string, adminOverride?: boolean) => {
     try {
       setLoading(true);
+
+      // Usar overrides si se proporcionan, sino usar el estado actual
+      const username = userOverride !== undefined ? userOverride : currentUsername;
+      const isAdminUser = adminOverride !== undefined ? adminOverride : isAdmin;
+
+      console.log('🔍 DEBUG fetchInvoices - username:', username, 'isAdminUser:', isAdminUser);
 
       let query = supabase.from('processed_invoices').select('*').order('created_at', { ascending: false });
 
       // Filtrar por usuario actual (cada usuario solo ve sus facturas, salvo admin que ve todas)
-      if (!isAdmin && currentUsername) {
-        query = query.eq('usuario', currentUsername);
-        console.log('🔍 Filtrando facturas para usuario:', currentUsername);
+      if (!isAdminUser && username) {
+        query = query.eq('usuario', username);
+        console.log('🔍 Filtrando facturas para usuario:', username);
         console.log('📊 Mostrando solo facturas del usuario actual');
-      } else if (isAdmin) {
+      } else if (isAdminUser) {
         console.log('👑 Usuario admin - mostrando todas las facturas de todos los usuarios');
       } else {
         console.log('⚠️ No hay usuario logueado - mostrando facturas vacías');
@@ -733,8 +739,8 @@ export function FacturasProcesadasPage() {
       filtrado: isAdminUser ? 'TODAS las facturas' : `Solo facturas de ${username}`
     });
 
-    // Cargar facturas después de verificar permisos
-    fetchInvoices();
+    // Cargar facturas después de verificar permisos - PASAR VALORES DIRECTAMENTE
+    fetchInvoices(username || '', isAdminUser);
     fetchMaestros();
   }, []);
 
