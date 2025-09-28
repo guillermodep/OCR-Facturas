@@ -1053,10 +1053,10 @@ export function FacturasProcesadasPage() {
                           ) : (
                             <div
                               className="cursor-pointer hover:bg-gray-100 px-1 py-0.5 rounded flex items-center justify-between"
-                              onClick={() => startEditingIVA(invoice.id, index, datosArticulo.iva || item.iva || 0)}
+                              onClick={() => startEditingIVA(invoice.id, index, item.iva || datosArticulo.iva || 0)}
                               title="Hacer clic para editar IVA"
                             >
-                              <span>{datosArticulo.iva || item.iva || 0}</span>
+                              <span>{item.iva || datosArticulo.iva || 0}</span>
                               <span className="text-gray-400 text-xs ml-1">✏️</span>
                             </div>
                           )}
@@ -1067,7 +1067,7 @@ export function FacturasProcesadasPage() {
                             // Determinar qué IVA usar: temporal si se está editando este item, sino el normal
                             const ivaActual = editingIVA && editingIVA.invoiceId === invoice.id && editingIVA.itemIndex === index
                               ? tempIVA
-                              : (datosArticulo.iva || item.iva || 0);
+                              : (item.iva || datosArticulo.iva || 0);
                             return ((item.neto || 0) * (1 + ivaActual / 100)).toFixed(2);
                           })()}
                         </td>
