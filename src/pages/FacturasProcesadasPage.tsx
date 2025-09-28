@@ -9,6 +9,8 @@ interface InvoiceItem {
   codArticulo: string;
   descripcion: string;
   unidades: number;
+  pesoKg?: number;
+  volumenL?: number;
   precioUd: number;
   dto: number;
   iva: number;
@@ -379,7 +381,7 @@ export function FacturasProcesadasPage() {
     });
   };
 
-  const buscarDelegacion = (nombreCliente: string): string => {
+  const buscarDelegacion = (nombreCliente: string, nombreProveedor: string): string => {
     return buscarConCache('delegacion', nombreCliente, (clave: string) => {
       const startTime = performance.now();
       console.log(`🔍 [DELEGACIÓN] Buscando: "${clave}"`);
@@ -387,6 +389,19 @@ export function FacturasProcesadasPage() {
       if (!clave || loadingMaestros) {
         console.log(`⚠️ [DELEGACIÓN] Búsqueda cancelada: ${!clave ? 'Nombre vacío' : 'Datos maestros cargando'}`);
         return '';
+      }
+
+      // Regla específica para LA TERCERA ESTRELLA S.L. -> Los Marangos Pedregalejo
+      if (clave.toLowerCase().includes('la tercera estrella')) {
+        console.log(`🎯 [DELEGACIÓN] Regla específica LA TERCERA ESTRELLA detectada`);
+        const targetDelegacion = delegaciones.find(d => 
+          d.razon_social && d.razon_social.toLowerCase() === 'la tercera estrella sl'
+        );
+        if (targetDelegacion) {
+          const endTime = performance.now();
+          console.log(`✅ [DELEGACIÓN] Encontrado por regla específica: "${targetDelegacion.delegacion}" - ${Math.round(endTime - startTime)}ms`);
+          return targetDelegacion.delegacion || '';
+        }
       }
 
       const normalizarNombreCompleto = (nombre: string) => {
@@ -546,14 +561,14 @@ export function FacturasProcesadasPage() {
 
     const excelHeaders = [
       'Fecha Factura', 'Proveedor', 'CIF', 'Cód. Proveedor', 'Cliente', 'Delegación',
-      'Cód. Artículo', 'Subfamilia', 'Descripción', 'Unidades',
+      'Cód. Artículo', 'Subfamilia', 'Descripción', 'Unidades', 'Peso (Kg)', 'Volumen (L)',
       'Precio Ud.', '% Dto.', '% IVA', 'Neto', 'Importe'
     ];
 
     const allItems = invoicesToExport.flatMap(invoice =>
       invoice.items.map(item => {
         const datosProveedor = buscarDatosProveedor(invoice.proveedor);
-        const delegacion = buscarDelegacion(invoice.cliente);
+        const delegacion = buscarDelegacion(invoice.cliente, invoice.proveedor);
         const datosArticulo = buscarDatosArticulo(item.descripcion);
 
         return [
@@ -567,6 +582,8 @@ export function FacturasProcesadasPage() {
           datosArticulo.subfamilia || '',
           item.descripcion || '',
           item.unidades || 0,
+          item.pesoKg || '',
+          item.volumenL || '',
           item.precioUd || 0,
           item.dto || 0,
           datosArticulo.iva || item.iva || 0,
@@ -591,6 +608,8 @@ export function FacturasProcesadasPage() {
       { wch: 12 }, // Subfamilia
       { wch: 25 }, // Descripción
       { wch: 10 }, // Unidades
+      { wch: 10 }, // Peso (Kg)
+      { wch: 10 }, // Volumen (L)
       { wch: 10 }, // Precio Ud.
       { wch: 8 },  // % Dto.
       { wch: 8 },  // % IVA
@@ -859,6 +878,8 @@ export function FacturasProcesadasPage() {
                     <th scope="col" className="px-3 py-3">Subfamilia</th>
                     <th scope="col" className="px-3 py-3">Descripción</th>
                     <th scope="col" className="px-3 py-3">Unidades</th>
+                    <th scope="col" className="px-3 py-3">Peso (Kg)</th>
+                    <th scope="col" className="px-3 py-3">Volumen (L)</th>
                     <th scope="col" className="px-3 py-3">Precio Ud.</th>
                     <th scope="col" className="px-3 py-3">% Dto.</th>
                     <th scope="col" className="px-3 py-3">% IVA</th>
@@ -869,7 +890,7 @@ export function FacturasProcesadasPage() {
                 <tbody>
                   {invoice.items?.map((item, index) => {
                     const datosProveedor = buscarDatosProveedor(invoice.proveedor);
-                    const delegacion = buscarDelegacion(invoice.cliente);
+                    const delegacion = buscarDelegacion(invoice.cliente, invoice.proveedor);
                     const datosArticulo = buscarDatosArticulo(item.descripcion);
                     
                     return (
@@ -883,6 +904,8 @@ export function FacturasProcesadasPage() {
                         <td className="px-3 py-4">{datosArticulo.subfamilia || '-'}</td>
                         <td className="px-3 py-4">{item.descripcion}</td>
                         <td className="px-3 py-4">{item.unidades}</td>
+                        <td className="px-3 py-4">{item.pesoKg || '-'}</td>
+                        <td className="px-3 py-4">{item.volumenL || '-'}</td>
                         <td className="px-3 py-4">{item.precioUd}</td>
                         <td className="px-3 py-4">{item.dto || 0}</td>
                         <td className="px-3 py-4">{datosArticulo.iva || item.iva || 0}</td>

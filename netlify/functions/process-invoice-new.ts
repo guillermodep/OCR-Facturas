@@ -127,7 +127,9 @@ const processImageWithAI = async (client: AzureOpenAI, imageBase64: string, mime
       "codCentral": "código central del producto",
       "codArticulo": "código de artículo",
       "descripcion": "descripción del producto",
-      "unidades": cantidad numérica,
+      "unidades": cantidad numérica de unidades (paquetes, cajas, etc.),
+      "pesoKg": peso en kilos (si está especificado, ej: 5.5, null si no aplica),
+      "volumenL": volumen en litros (si está especificado, ej: 10.0, null si no aplica),
       "precioUd": precio unitario numérico,
       "dto": descuento numérico (0 si no hay),
       "iva": porcentaje de IVA numérico,
@@ -135,6 +137,10 @@ const processImageWithAI = async (client: AzureOpenAI, imageBase64: string, mime
     }
   ]
 }
+IMPORTANTE: Para cada producto, identifica y extrae:
+- UNIDADES: cantidad de paquetes/cajas/unidades
+- PESO_KG: si se menciona peso (kg, gramos, etc.), conviértelo a kilos
+- VOLUMEN_L: si se menciona volumen (litros, ml, etc.), conviértelo a litros
 Sé extremadamente preciso con los números y códigos. Extrae TODOS los productos de la factura.`,
               },
               { type: "image_url", image_url: { url: dataUrl, detail: "high" } },

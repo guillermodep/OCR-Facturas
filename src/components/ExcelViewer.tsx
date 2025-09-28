@@ -13,6 +13,8 @@ interface InvoiceItem {
   codArticulo?: string;
   descripcion?: string;
   unidades?: number;
+  pesoKg?: number;
+  volumenL?: number;
   precioUd?: number;
   dto?: number;
   iva?: number;
@@ -62,6 +64,8 @@ export const ExcelViewer: React.FC<ExcelViewerProps> = ({ processedData }) => {
       'Subfamilia',
       'Descripción',
       'Unidades',
+      'Peso (Kg)',
+      'Volumen (L)',
       'Precio Ud.',
       '% Dto.',
       '% IVA',
@@ -505,6 +509,8 @@ export const ExcelViewer: React.FC<ExcelViewerProps> = ({ processedData }) => {
             const proveedor = invoiceData.proveedor || invoiceData.data?.proveedor || '';
             const datosProveedor = buscarDatosProveedor(proveedor);
             const unidades = item.unidades ?? 0;
+            const pesoKg = item.pesoKg ?? null;
+            const volumenL = item.volumenL ?? null;
             const precioUd = item.precioUd ?? 0;
             const dto = item.dto ?? 0;
 
@@ -531,6 +537,8 @@ export const ExcelViewer: React.FC<ExcelViewerProps> = ({ processedData }) => {
               datosArticulo.subfamilia || '',
               item.descripcion || '',
               unidades,
+              pesoKg,
+              volumenL,
               precioUd,
               dto,
               iva,
@@ -643,7 +651,7 @@ export const ExcelViewer: React.FC<ExcelViewerProps> = ({ processedData }) => {
     // Formato específico requerido por el usuario
     const excelHeaders = [
       'Proveedor', 'CIF', 'Cód. Proveedor', 'Cliente', 'Delegación', 
-      'Cód. Artículo', 'Subfamilia', 'Descripción', 'Unidades', 
+      'Cód. Artículo', 'Subfamilia', 'Descripción', 'Unidades', 'Peso (Kg)', 'Volumen (L)',
       'Precio Ud.', '% Dto.', '% IVA', 'Neto', 'Importe'
     ];
     
@@ -665,6 +673,8 @@ export const ExcelViewer: React.FC<ExcelViewerProps> = ({ processedData }) => {
         rowData['Subfamilia'] || '',
         rowData['Descripción'] || '',
         rowData['Unidades'] || 0,
+        rowData['Peso (Kg)'] || '',
+        rowData['Volumen (L)'] || '',
         rowData['Precio Ud.'] || 0,
         rowData['% Dto.'] || 0,
         rowData['% IVA'] || 0,
@@ -699,6 +709,8 @@ export const ExcelViewer: React.FC<ExcelViewerProps> = ({ processedData }) => {
       { wch: 12 }, // Subfamilia
       { wch: 25 }, // Descripción
       { wch: 10 }, // Unidades
+      { wch: 10 }, // Peso (Kg)
+      { wch: 10 }, // Volumen (L)
       { wch: 10 }, // Precio Ud.
       { wch: 8 },  // % Dto.
       { wch: 8 },  // % IVA
