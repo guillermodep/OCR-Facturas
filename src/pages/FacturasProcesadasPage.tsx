@@ -407,8 +407,8 @@ export function FacturasProcesadasPage() {
       updatedItems[editingDescuento.itemIndex] = {
         ...item,
         [campoActualizar]: tempDescuento,
-        // Recalcular el importe neto: (precioUd * unidades * (1 - dto/100)) + importeDescuento
-        neto: Math.round((item.precioUd * (item.unidades || 1) * (1 - (campoActualizar === 'dto' ? tempDescuento : (item.dto || 0)) / 100) + (campoActualizar === 'importeDescuento' ? tempDescuento : (item.importeDescuento || 0))) * 100) / 100
+        // Recalcular el importe neto: (precioUd * unidades * (1 - dto/100)) - Math.abs(importeDescuento)
+        neto: Math.round((item.precioUd * (item.unidades || 1) * (1 - (campoActualizar === 'dto' ? tempDescuento : (item.dto || 0)) / 100) - Math.abs(campoActualizar === 'importeDescuento' ? tempDescuento : (item.importeDescuento || 0))) * 100) / 100
       };
 
       console.log('🔧 [DESCUENTO] Items actualizados:', updatedItems);
@@ -1369,8 +1369,8 @@ export function FacturasProcesadasPage() {
                               ? tempDescuento
                               : (item.importeDescuento || 0);
 
-                            // Calcular importe neto: (precioUd * unidades * (1 - dto/100)) + importeDescuento
-                            const importeNeto = (precioActual * (item.unidades || 1) * (1 - dtoActual / 100)) + importeDescuentoActual;
+                            // Calcular importe neto: (precioUd * unidades * (1 - dto/100)) - Math.abs(importeDescuento)
+                            const importeNeto = (precioActual * (item.unidades || 1) * (1 - dtoActual / 100)) - Math.abs(importeDescuentoActual);
                             const ivaActual = editingIVA && editingIVA.invoiceId === invoice.id && editingIVA.itemIndex === index
                               ? tempIVA
                               : (item.iva || datosArticulo.iva || 0);

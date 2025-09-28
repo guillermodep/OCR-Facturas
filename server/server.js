@@ -77,7 +77,7 @@ app.post('/api/process-invoice', async (req, res) => {
               - DTO: porcentaje de descuento aplicado (0 si no hay descuento)
               - IMPORTE_DESCUENTO: si aparece un descuento como importe (ej: -5.50, -10.00), extráelo como valor negativo
               - IVA: porcentaje de IVA aplicado
-              - NETO: importe neto = (precioUd × unidades) × (1 - dto/100) + importeDescuento
+              - NETO: importe neto = (precioUd × unidades) × (1 - dto/100) - Math.abs(importeDescuento)
 
               INSTRUCCIONES ESPECÍFICAS PARA DESCUENTOS:
               - Busca columnas o filas que digan "DTO", "DESCUENTO", "DTO%", "DCTO", etc.
