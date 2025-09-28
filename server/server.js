@@ -68,7 +68,25 @@ app.post('/api/process-invoice', async (req, res) => {
                   }
                 ]
               }
-              Sé extremadamente preciso con los números y códigos. Extrae TODOS los productos de la factura.`
+              Sé extremadamente preciso con los números y códigos. Extrae TODOS los productos de la factura.
+              
+              IMPORTANTE: Para cada producto, identifica y extrae:
+              - UNIDADES: cantidad de paquetes/cajas/unidades
+              - PRECIO_UD: precio unitario por unidad (antes de descuentos e IVA)
+              - DTO: porcentaje de descuento aplicado (0 si no hay descuento)
+              - IVA: porcentaje de IVA aplicado
+              - NETO: importe neto = (precioUd × unidades) × (1 - dto/100)
+
+              INSTRUCCIONES ESPECÍFICAS PARA PRECIOS:
+              - Busca columnas o filas que digan "PRECIO", "P.U.", "UNITARIO", "€/UD", etc.
+              - El precio unitario es el precio por cada unidad antes de descuentos
+              - Si hay descuento, extráelo como porcentaje (ej: "10%" → 10)
+              - El importe neto es el subtotal después de aplicar descuentos pero antes del IVA
+              - Si no hay descuento explícito, usa dto: 0
+
+              EJEMPLOS:
+              - Producto: "MANZANA 2kg", Precio: "€2.50/kg", Cantidad: "3" → precioUd: 2.50, unidades: 3, neto: 7.50
+              - Producto: "LECHE 1L", Precio: "€1.20", Cantidad: "6", Descuento: "5%" → precioUd: 1.20, unidades: 6, dto: 5, neto: 6.84`
             },
             {
               type: "image_url",
