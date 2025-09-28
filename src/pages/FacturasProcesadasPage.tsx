@@ -58,11 +58,13 @@ export function FacturasProcesadasPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [currentUsername, setCurrentUsername] = useState<string>('');
 
-  // Estado para edición de IVA y precios
+  // Estado para edición de IVA, precios y descuentos
   const [editingIVA, setEditingIVA] = useState<{invoiceId: number, itemIndex: number} | null>(null);
   const [tempIVA, setTempIVA] = useState<number>(0);
   const [editingPrecio, setEditingPrecio] = useState<{invoiceId: number, itemIndex: number} | null>(null);
   const [tempPrecio, setTempPrecio] = useState<number>(0);
+  const [editingDescuento, setEditingDescuento] = useState<{invoiceId: number, itemIndex: number, tipo: 'dto' | 'importeDescuento'} | null>(null);
+  const [tempDescuento, setTempDescuento] = useState<number>(0);
 
   // Función genérica para búsquedas con cache
   const buscarConCache = useCallback((tipo: 'proveedor' | 'articulo' | 'delegacion', clave: string, funcionBusqueda: Function) => {
@@ -366,6 +368,97 @@ export function FacturasProcesadasPage() {
     } catch (error) {
       console.error('❌ [PRECIO] Error inesperado:', error);
       alert('Error inesperado al guardar el precio');
+    }
+  };
+
+  // Funciones para edición de descuentos
+  const startEditingDescuento = (invoiceId: number, itemIndex: number, tipo: 'dto' | 'importeDescuento', currentValue: number) => {
+    setEditingDescuento({ invoiceId, itemIndex, tipo });
+    setTempDescuento(currentValue);
+  };
+
+  const cancelEditingDescuento = () => {
+    setEditingDescuento(null);
+    setTempDescuento(0);
+  };
+
+  const saveEditingDescuento = async () => {
+    if (!editingDescuento) return;
+
+    try {
+      console.log('🔄 [DESCUENTO] Iniciando actualización de descuento...');
+      console.log('📋 [DESCUENTO] editingDescuento:', editingDescuento);
+      console.log('💰 [DESCUENTO] tempDescuento:', tempDescuento);
+
+      const invoice = invoices.find(inv => inv.id === editingDescuento.invoiceId);
+      if (!invoice || !invoice.items[editingDescuento.itemIndex]) {
+        console.error('❌ [DESCUENTO] Factura o item no encontrado');
+        alert('Factura o item no encontrado');
+        return;
+      }
+
+      console.log('📄 [DESCUENTO] Factura encontrada:', invoice.numero_factura);
+
+      // Actualizar el item en la base de datos
+      const updatedItems = [...invoice.items];
+      const item = updatedItems[editingDescuento.itemIndex];
+      const campoActualizar = editingDescuento.tipo;
+
+      updatedItems[editingDescuento.itemIndex] = {
+        ...item,
+        [campoActualizar]: tempDescuento,
+        // Recalcular el importe neto: (precioUd * unidades * (1 - dto/100)) + importeDescuento
+        neto: Math.round((item.precioUd * (item.unidades || 1) * (1 - (campoActualizar === 'dto' ? tempDescuento : (item.dto || 0)) / 100) + (campoActualizar === 'importeDescuento' ? tempDescuento : (item.importeDescuento || 0))) * 100) / 100
+      };
+
+      console.log('🔧 [DESCUENTO] Items actualizados:', updatedItems);
+
+      // Recalcular el total de la factura
+      let newTotal = 0;
+      updatedItems.forEach(item => {
+        if (item.neto && item.iva !== undefined) {
+          const importeItem = item.neto * (1 + item.iva / 100);
+          newTotal += importeItem;
+        }
+      });
+      newTotal = Math.round(newTotal * 100) / 100;
+
+      console.log('💵 [DESCUENTO] Nuevo total calculado:', newTotal);
+
+      console.log('🔗 [DESCUENTO] Enviando actualización a Supabase...');
+      const { error } = await supabase
+        .from('processed_invoices')
+        .update({
+          items: updatedItems,
+          total: newTotal
+        })
+        .eq('id', editingDescuento.invoiceId);
+
+      if (error) {
+        console.error('❌ [DESCUENTO] Error de Supabase:', error);
+        console.error('❌ [DESCUENTO] Código de error:', error.code);
+        console.error('❌ [DESCUENTO] Mensaje de error:', error.message);
+        console.error('❌ [DESCUENTO] Detalles del error:', error.details);
+        alert(`Error al guardar el descuento: ${error.message}`);
+        return;
+      }
+
+      console.log('✅ [DESCUENTO] Actualización exitosa en BD');
+
+      // Actualizar el estado local
+      setInvoices(prev => prev.map(inv =>
+        inv.id === editingDescuento.invoiceId
+          ? { ...inv, items: updatedItems, total: newTotal }
+          : inv
+      ));
+
+      console.log('✅ [DESCUENTO] Estado local actualizado');
+      setEditingDescuento(null);
+      setTempDescuento(0);
+      console.log('✅ [DESCUENTO] Edición finalizada');
+    } catch (error) {
+      console.error('❌ [DESCUENTO] Error inesperado:', error);
+      alert('Error inesperado al guardar el descuento');
     }
   };
 
@@ -1152,8 +1245,80 @@ export function FacturasProcesadasPage() {
                             </div>
                           )}
                         </td>
-                        <td className="px-3 py-4">{item.dto || 0}</td>
-                        <td className="px-3 py-4">{item.importeDescuento || 0}</td>
+                        <td className="px-3 py-4">
+                          {editingDescuento && editingDescuento.invoiceId === invoice.id && editingDescuento.itemIndex === index && editingDescuento.tipo === 'dto' ? (
+                            <div className="flex items-center space-x-2">
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={tempDescuento}
+                                onChange={(e) => setTempDescuento(parseFloat(e.target.value) || 0)}
+                                className="w-16 px-2 py-1 text-xs border rounded"
+                                autoFocus
+                              />
+                              <button
+                                onClick={saveEditingDescuento}
+                                className="text-green-600 hover:text-green-800 p-1"
+                                title="Guardar"
+                              >
+                                <Check size={14} />
+                              </button>
+                              <button
+                                onClick={cancelEditingDescuento}
+                                className="text-red-600 hover:text-red-800 p-1"
+                                title="Cancelar"
+                              >
+                                <X size={14} />
+                              </button>
+                            </div>
+                          ) : (
+                            <div
+                              className="cursor-pointer hover:bg-gray-100 px-1 py-0.5 rounded flex items-center justify-between"
+                              onClick={() => startEditingDescuento(invoice.id, index, 'dto', item.dto || 0)}
+                              title="Hacer clic para editar porcentaje descuento"
+                            >
+                              <span>{item.dto || 0}</span>
+                              <span className="text-gray-400 text-xs ml-1">%💸</span>
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-3 py-4">
+                          {editingDescuento && editingDescuento.invoiceId === invoice.id && editingDescuento.itemIndex === index && editingDescuento.tipo === 'importeDescuento' ? (
+                            <div className="flex items-center space-x-2">
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={tempDescuento}
+                                onChange={(e) => setTempDescuento(parseFloat(e.target.value) || 0)}
+                                className="w-16 px-2 py-1 text-xs border rounded"
+                                autoFocus
+                              />
+                              <button
+                                onClick={saveEditingDescuento}
+                                className="text-green-600 hover:text-green-800 p-1"
+                                title="Guardar"
+                              >
+                                <Check size={14} />
+                              </button>
+                              <button
+                                onClick={cancelEditingDescuento}
+                                className="text-red-600 hover:text-red-800 p-1"
+                                title="Cancelar"
+                              >
+                                <X size={14} />
+                              </button>
+                            </div>
+                          ) : (
+                            <div
+                              className="cursor-pointer hover:bg-gray-100 px-1 py-0.5 rounded flex items-center justify-between"
+                              onClick={() => startEditingDescuento(invoice.id, index, 'importeDescuento', item.importeDescuento || 0)}
+                              title="Hacer clic para editar importe descuento"
+                            >
+                              <span>{item.importeDescuento || 0}</span>
+                              <span className="text-gray-400 text-xs ml-1">€💰</span>
+                            </div>
+                          )}
+                        </td>
                         <td className="px-3 py-4">
                           {editingIVA && editingIVA.invoiceId === invoice.id && editingIVA.itemIndex === index ? (
                             <div className="flex items-center space-x-2">
@@ -1193,32 +1358,24 @@ export function FacturasProcesadasPage() {
                         </td>
                         <td className="px-3 py-4">
                           {(() => {
-                            // Determinar qué precio y IVA usar para calcular el importe neto
+                            // Determinar qué precio, descuento y IVA usar para calcular el importe neto
                             const precioActual = editingPrecio && editingPrecio.invoiceId === invoice.id && editingPrecio.itemIndex === index
                               ? tempPrecio
                               : item.precioUd;
-                            const ivaActual = editingIVA && editingIVA.invoiceId === invoice.id && editingIVA.itemIndex === index
-                              ? tempIVA
-                              : (item.iva || datosArticulo.iva || 0);
+                            const dtoActual = editingDescuento && editingDescuento.invoiceId === invoice.id && editingDescuento.itemIndex === index && editingDescuento.tipo === 'dto'
+                              ? tempDescuento
+                              : (item.dto || 0);
+                            const importeDescuentoActual = editingDescuento && editingDescuento.invoiceId === invoice.id && editingDescuento.itemIndex === index && editingDescuento.tipo === 'importeDescuento'
+                              ? tempDescuento
+                              : (item.importeDescuento || 0);
 
                             // Calcular importe neto: (precioUd * unidades * (1 - dto/100)) + importeDescuento
-                            const importeNeto = (precioActual * (item.unidades || 1) * (1 - (item.dto || 0) / 100)) + (item.importeDescuento || 0);
-                            return importeNeto.toFixed(2);
-                          })()}
-                        </td>
-                        <td className="px-3 py-4">
-                          {(() => {
-                            // Determinar qué precio y IVA usar para calcular el importe total
-                            const precioActual = editingPrecio && editingPrecio.invoiceId === invoice.id && editingPrecio.itemIndex === index
-                              ? tempPrecio
-                              : item.precioUd;
+                            const importeNeto = (precioActual * (item.unidades || 1) * (1 - dtoActual / 100)) + importeDescuentoActual;
                             const ivaActual = editingIVA && editingIVA.invoiceId === invoice.id && editingIVA.itemIndex === index
                               ? tempIVA
                               : (item.iva || datosArticulo.iva || 0);
 
-                            // Calcular importe neto primero
-                            const importeNeto = (precioActual * (item.unidades || 1) * (1 - (item.dto || 0) / 100)) + (item.importeDescuento || 0);
-                            // Luego calcular importe total: importeNeto * (1 + IVA/100)
+                            // Calcular importe total: importeNeto * (1 + IVA/100)
                             const importeTotal = importeNeto * (1 + ivaActual / 100);
                             return importeTotal.toFixed(2);
                           })()}
