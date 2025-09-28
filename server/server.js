@@ -138,6 +138,18 @@ app.post('/api/process-invoice', async (req, res) => {
       invoiceData.items = enrichedItems;
     }
 
+    // Calcular el total de la factura
+    let totalFactura = 0;
+    if (invoiceData.items && invoiceData.items.length > 0) {
+      invoiceData.items.forEach(item => {
+        if (item.neto && item.iva !== undefined) {
+          const importeItem = item.neto * (1 + item.iva / 100);
+          totalFactura += importeItem;
+        }
+      });
+      invoiceData.total = Math.round(totalFactura * 100) / 100; // Redondear a 2 decimales
+    }
+
     // Guardar la factura procesada en la base de datos
     try {
       const invoiceToSave = {
@@ -157,6 +169,7 @@ app.post('/api/process-invoice', async (req, res) => {
           proveedor: invoiceData.proveedor,
           cliente: invoiceData.cliente,
           items: invoiceData.items,
+          total: invoiceData.total, // ✅ Agregar total calculado
         }]);
 
       if (insertError) {

@@ -25,6 +25,7 @@ interface ProcessedInvoice {
   proveedor: string;
   cliente: string;
   items: InvoiceItem[];
+  total?: number; // ✅ Campo opcional para el total de la factura
 }
 
 export function FacturasProcesadasPage() {
@@ -562,7 +563,7 @@ export function FacturasProcesadasPage() {
     const excelHeaders = [
       'Fecha Factura', 'Proveedor', 'CIF', 'Cód. Proveedor', 'Cliente', 'Delegación',
       'Cód. Artículo', 'Subfamilia', 'Descripción', 'Unidades', 'Peso (Kg)', 'Volumen (L)',
-      'Precio Ud.', '% Dto.', '% IVA', 'Neto', 'Importe'
+      'Precio Ud.', '% Dto.', '% IVA', 'Neto', 'Importe', 'Total Factura'
     ];
 
     const allItems = invoicesToExport.flatMap(invoice =>
@@ -588,7 +589,8 @@ export function FacturasProcesadasPage() {
           item.dto || 0,
           datosArticulo.iva || item.iva || 0,
           item.neto || 0,
-          (item.neto || 0) * (1 + (datosArticulo.iva || item.iva || 0) / 100)
+          (item.neto || 0) * (1 + (datosArticulo.iva || item.iva || 0) / 100),
+          invoice.total || 0 // ✅ Total de la factura
         ];
       })
     );
@@ -614,7 +616,8 @@ export function FacturasProcesadasPage() {
       { wch: 8 },  // % Dto.
       { wch: 8 },  // % IVA
       { wch: 10 }, // Neto
-      { wch: 10 }  // Importe
+      { wch: 10 }, // Importe
+      { wch: 12 }  // Total Factura
     ];
 
     const fileName = invoicesToExport.length > 1 
@@ -820,6 +823,11 @@ export function FacturasProcesadasPage() {
             </div>
           )}
           <span className="text-xl font-bold bg-gray-200 text-gray-700 px-3 py-1 rounded-lg">{invoices.length}</span>
+          {invoices.length > 0 && (
+            <span className="text-xl font-bold bg-green-200 text-green-700 px-3 py-1 rounded-lg ml-4">
+              💰 Total: €{invoices.reduce((sum, invoice) => sum + (invoice.total || 0), 0).toFixed(2)}
+            </span>
+          )}
         </div>
       </div>
       <div className="space-y-6">
@@ -840,10 +848,11 @@ export function FacturasProcesadasPage() {
                     <div className="flex items-center min-w-0"><Calendar className="mr-2 h-4 w-4 flex-shrink-0" /> <span className="font-semibold text-gray-700 whitespace-nowrap">Fecha:</span> <span className="ml-1 text-gray-900 truncate">{invoice.fecha_factura}</span></div>
                     <div className="flex items-center min-w-0"><span className="mr-2 h-4 w-4 flex items-center justify-center text-sm font-bold text-blue-600 flex-shrink-0">👤</span> <span className="font-semibold text-gray-700 whitespace-nowrap">Usuario:</span> <span className="ml-1 text-gray-900 truncate">{(invoice as any).usuario || 'N/A'}</span></div>
                   </div>
-                  {/* Segunda fila: Proveedor, Cliente */}
-                  <div className="grid grid-cols-2 gap-6">
+                  {/* Segunda fila: Proveedor, Cliente, Total */}
+                  <div className="grid grid-cols-3 gap-6">
                     <div className="flex items-center min-w-0"><User className="mr-2 h-4 w-4 flex-shrink-0" /> <span className="font-semibold text-gray-700 whitespace-nowrap">Proveedor:</span> <span className="ml-1 text-gray-900 truncate">{invoice.proveedor}</span></div>
                     <div className="flex items-center min-w-0"><Building className="mr-2 h-4 w-4 flex-shrink-0" /> <span className="font-semibold text-gray-700 whitespace-nowrap">Cliente:</span> <span className="ml-1 text-gray-900 truncate">{invoice.cliente}</span></div>
+                    <div className="flex items-center min-w-0"><span className="mr-2 h-4 w-4 flex items-center justify-center text-sm font-bold text-green-600 flex-shrink-0">💰</span> <span className="font-semibold text-gray-700 whitespace-nowrap">Total:</span> <span className="ml-1 text-green-600 font-bold truncate">{invoice.total ? `€${invoice.total.toFixed(2)}` : 'N/A'}</span></div>
                   </div>
                 </div>
               </div>
