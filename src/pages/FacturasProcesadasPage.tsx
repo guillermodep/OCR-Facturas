@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import * as XLSX from 'xlsx';
 import { Button } from '@/components/ui/button';
-import { FileText, Calendar, User, Building, List, Trash2, FileDown, CheckSquare, Square } from 'lucide-react';
+import { FileText, Calendar, User, Building, List, Trash2, FileDown, CheckSquare, Square, Check, X } from 'lucide-react';
 
 interface InvoiceItem {
   codCentral: string;
@@ -56,6 +56,10 @@ export function FacturasProcesadasPage() {
   // Estado para verificar si el usuario actual es admin
   const [isAdmin, setIsAdmin] = useState(false);
   const [currentUsername, setCurrentUsername] = useState<string>('');
+
+  // Estado para edición de IVA
+  const [editingIVA, setEditingIVA] = useState<{invoiceId: number, itemIndex: number} | null>(null);
+  const [tempIVA, setTempIVA] = useState<number>(0);
 
   // Función genérica para búsquedas con cache
   const buscarConCache = useCallback((tipo: 'proveedor' | 'articulo' | 'delegacion', clave: string, funcionBusqueda: Function) => {
@@ -185,6 +189,70 @@ export function FacturasProcesadasPage() {
       });
     }
     return Math.round(total * 100) / 100; // Redondear a 2 decimales
+  };
+
+  // Funciones para edición de IVA
+  const startEditingIVA = (invoiceId: number, itemIndex: number, currentIVA: number) => {
+    setEditingIVA({ invoiceId, itemIndex });
+    setTempIVA(currentIVA);
+  };
+
+  const cancelEditingIVA = () => {
+    setEditingIVA(null);
+    setTempIVA(0);
+  };
+
+  const saveEditingIVA = async () => {
+    if (!editingIVA) return;
+
+    try {
+      const invoice = invoices.find(inv => inv.id === editingIVA.invoiceId);
+      if (!invoice || !invoice.items[editingIVA.itemIndex]) return;
+
+      // Actualizar el item en la base de datos
+      const updatedItems = [...invoice.items];
+      updatedItems[editingIVA.itemIndex] = {
+        ...updatedItems[editingIVA.itemIndex],
+        iva: tempIVA
+      };
+
+      // Recalcular el total de la factura
+      let newTotal = 0;
+      updatedItems.forEach(item => {
+        if (item.neto && item.iva !== undefined) {
+          const importeItem = item.neto * (1 + item.iva / 100);
+          newTotal += importeItem;
+        }
+      });
+      newTotal = Math.round(newTotal * 100) / 100;
+
+      const { error } = await supabase
+        .from('processed_invoices')
+        .update({ 
+          items: updatedItems,
+          total: newTotal
+        })
+        .eq('id', editingIVA.invoiceId);
+
+      if (error) {
+        console.error('Error updating IVA:', error);
+        alert('Error al guardar el IVA');
+        return;
+      }
+
+      // Actualizar el estado local
+      setInvoices(prev => prev.map(inv =>
+        inv.id === editingIVA.invoiceId
+          ? { ...inv, items: updatedItems, total: newTotal }
+          : inv
+      ));
+
+      setEditingIVA(null);
+      setTempIVA(0);
+    } catch (error) {
+      console.error('Error saving IVA:', error);
+      alert('Error al guardar el IVA');
+    }
   };
 
   // Función para buscar el código de artículo, subfamilia e IVA por descripción usando LIKE
@@ -934,9 +1002,53 @@ export function FacturasProcesadasPage() {
                         <td className="px-3 py-4">{item.volumenL || '-'}</td>
                         <td className="px-3 py-4">{item.precioUd}</td>
                         <td className="px-3 py-4">{item.dto || 0}</td>
-                        <td className="px-3 py-4">{datosArticulo.iva || item.iva || 0}</td>
+                        <td className="px-3 py-4">
+                          {editingIVA && editingIVA.invoiceId === invoice.id && editingIVA.itemIndex === index ? (
+                            <div className="flex items-center space-x-2">
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={tempIVA}
+                                onChange={(e) => setTempIVA(parseFloat(e.target.value) || 0)}
+                                className="w-16 px-2 py-1 text-xs border rounded"
+                                autoFocus
+                              />
+                              <button
+                                onClick={saveEditingIVA}
+                                className="text-green-600 hover:text-green-800 p-1"
+                                title="Guardar"
+                              >
+                                <Check size={14} />
+                              </button>
+                              <button
+                                onClick={cancelEditingIVA}
+                                className="text-red-600 hover:text-red-800 p-1"
+                                title="Cancelar"
+                              >
+                                <X size={14} />
+                              </button>
+                            </div>
+                          ) : (
+                            <div
+                              className="cursor-pointer hover:bg-gray-100 px-1 py-0.5 rounded flex items-center justify-between"
+                              onClick={() => startEditingIVA(invoice.id, index, datosArticulo.iva || item.iva || 0)}
+                              title="Hacer clic para editar IVA"
+                            >
+                              <span>{datosArticulo.iva || item.iva || 0}</span>
+                              <span className="text-gray-400 text-xs ml-1">✏️</span>
+                            </div>
+                          )}
+                        </td>
                         <td className="px-3 py-4">{item.neto}</td>
-                        <td className="px-3 py-4">{((item.neto || 0) * (1 + (datosArticulo.iva || item.iva || 0) / 100)).toFixed(2)}</td>
+                        <td className="px-3 py-4">
+                          {(() => {
+                            // Determinar qué IVA usar: temporal si se está editando este item, sino el normal
+                            const ivaActual = editingIVA && editingIVA.invoiceId === invoice.id && editingIVA.itemIndex === index
+                              ? tempIVA
+                              : (datosArticulo.iva || item.iva || 0);
+                            return ((item.neto || 0) * (1 + ivaActual / 100)).toFixed(2);
+                          })()}
+                        </td>
                       </tr>
                     );
                   })}
