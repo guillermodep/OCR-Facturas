@@ -12,6 +12,7 @@ interface InvoiceItem {
   unidades: number;
   precioUd: number;
   dto: number;
+  importeDescuento: number;
   iva: number;
   neto: number;
 }

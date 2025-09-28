@@ -131,7 +131,8 @@ const processImageWithAI = async (client: AzureOpenAI, imageBase64: string, mime
       "pesoKg": peso en kilos (si está especificado, ej: 5.5, null si no aplica),
       "volumenL": volumen en litros (si está especificado, ej: 10.0, null si no aplica),
       "precioUd": precio unitario numérico,
-      "dto": descuento numérico (0 si no hay),
+      "dto": descuento numérico como porcentaje (ej: 10 para 10%, 0 si no hay),
+      "importeDescuento": importe de descuento absoluto (ej: -5.50 para descuento de 5.50€, puede ser negativo),
       "iva": porcentaje de IVA numérico,
       "neto": importe neto numérico
     }
@@ -141,10 +142,18 @@ IMPORTANTE: Para cada producto, identifica y extrae:
 - UNIDADES: cantidad de paquetes/cajas/unidades
 - PRECIO_UD: precio unitario por unidad (antes de descuentos e IVA)
 - DTO: porcentaje de descuento aplicado (0 si no hay descuento)
+- IMPORTE_DESCUENTO: si aparece un descuento como importe (ej: -5.50, -10.00), extráelo como valor negativo
 - IVA: porcentaje de IVA aplicado
-- NETO: importe neto = (precioUd × unidades) × (1 - dto/100)
+- NETO: importe neto = (precioUd × unidades) × (1 - dto/100) + importeDescuento
 - PESO_KG: si se menciona peso (kg, gramos, etc.), conviértelo a kilos
 - VOLUMEN_L: si se menciona volumen (litros, ml, etc.), conviértelo a litros
+
+INSTRUCCIONES ESPECÍFICAS PARA DESCUENTOS:
+- Busca columnas o filas que digan "DTO", "DESCUENTO", "DTO%", "DCTO", etc.
+- Si ves un número negativo (ej: "-5.50", "-10.00"), es un importe de descuento absoluto
+- Si ves un porcentaje (ej: "10%", "5"), es un porcentaje de descuento
+- Usa dto para porcentajes y importeDescuento para importes absolutos
+- Si no hay descuento, usa dto: 0 e importeDescuento: 0
 
 INSTRUCCIONES ESPECÍFICAS PARA PRECIOS:
 - Busca columnas o filas que digan "PRECIO", "P.U.", "UNITARIO", "€/UD", etc.
@@ -156,6 +165,7 @@ INSTRUCCIONES ESPECÍFICAS PARA PRECIOS:
 EJEMPLOS:
 - Producto: "MANZANA 2kg", Precio: "€2.50/kg", Cantidad: "3" → precioUd: 2.50, unidades: 3, neto: 7.50
 - Producto: "LECHE 1L", Precio: "€1.20", Cantidad: "6", Descuento: "5%" → precioUd: 1.20, unidades: 6, dto: 5, neto: 6.84
+- Producto: "PAN", Precio: "€3.00", Cantidad: "2", Descuento: "-1.50" → precioUd: 3.00, unidades: 2, importeDescuento: -1.50, neto: 4.50
 
 Sé extremadamente preciso con los números y códigos. Extrae TODOS los productos de la factura.`,
               },

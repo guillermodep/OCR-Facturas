@@ -13,6 +13,7 @@ interface InvoiceItem {
   volumenL?: number;
   precioUd: number;
   dto: number;
+  importeDescuento: number;
   iva: number;
   neto: number;
 }
@@ -313,8 +314,8 @@ export function FacturasProcesadasPage() {
       updatedItems[editingPrecio.itemIndex] = {
         ...item,
         precioUd: tempPrecio,
-        // Recalcular el importe neto: precioUd * unidades * (1 - dto/100)
-        neto: Math.round(tempPrecio * (item.unidades || 1) * (1 - (item.dto || 0) / 100) * 100) / 100
+        // Recalcular el importe neto: (precioUd * unidades * (1 - dto/100)) + importeDescuento
+        neto: Math.round((tempPrecio * (item.unidades || 1) * (1 - (item.dto || 0) / 100) + (item.importeDescuento || 0)) * 100) / 100
       };
 
       console.log('🔧 [PRECIO] Items actualizados:', updatedItems);
