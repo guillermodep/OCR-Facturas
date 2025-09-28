@@ -225,16 +225,16 @@ export const handler: Handler = async (event) => {
 
     // Procesar y guardar todas las facturas extraídas
     for (const invoiceData of allInvoicesData) {
-      // Calcular el total de la factura
-      let totalFactura = 0;
+      // Normalizar descripciones de productos
       if (invoiceData.items && Array.isArray(invoiceData.items)) {
         invoiceData.items.forEach((item: any) => {
-          if (item.neto && item.iva !== undefined) {
-            const importeItem = item.neto * (1 + item.iva / 100);
-            totalFactura += importeItem;
+          if (item.descripcion) {
+            item.descripcion = item.descripcion
+              .toUpperCase()
+              .replace(/\./g, '') // Eliminar todos los puntos
+              .trim();
           }
         });
-        invoiceData.total = Math.round(totalFactura * 100) / 100; // Redondear a 2 decimales
       }
 
       // Guardar en Supabase
@@ -249,7 +249,6 @@ export const handler: Handler = async (event) => {
             proveedor: invoiceData.proveedor,
             cliente: invoiceData.cliente,
             items: invoiceData.items,
-            total: invoiceData.total, // ✅ Agregar total calculado
             usuario: usuario, // ✅ Agregar usuario a la inserción
           });
 

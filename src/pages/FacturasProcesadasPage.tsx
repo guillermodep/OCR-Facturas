@@ -170,7 +170,24 @@ export function FacturasProcesadasPage() {
     return resultados;
   }, []);
 
-  // Función para buscar por patrones avanzados
+  // Función para calcular el total de una factura
+  const calcularTotalFactura = (invoice: ProcessedInvoice): number => {
+    if (invoice.total !== undefined && invoice.total !== null) return invoice.total; // Si ya tiene total, devolverlo
+
+    // Calcular total basado en los items
+    let total = 0;
+    if (invoice.items && Array.isArray(invoice.items)) {
+      invoice.items.forEach(item => {
+        if (item.neto && item.iva !== undefined) {
+          const importeItem = item.neto * (1 + item.iva / 100);
+          total += importeItem;
+        }
+      });
+    }
+    return Math.round(total * 100) / 100; // Redondear a 2 decimales
+  };
+
+  // Función para buscar el código de artículo, subfamilia e IVA por descripción usando LIKE
   const buscarPorPatrones = useCallback((descripcion: string, articulos: any[]) => {
     if (configBusqueda.logLevel === 'debug') {
       console.log(`🔍 [PATRONES] Analizando: "${descripcion}"`);
@@ -825,7 +842,7 @@ export function FacturasProcesadasPage() {
           <span className="text-xl font-bold bg-gray-200 text-gray-700 px-3 py-1 rounded-lg">{invoices.length}</span>
           {invoices.length > 0 && (
             <span className="text-xl font-bold bg-green-200 text-green-700 px-3 py-1 rounded-lg ml-4">
-              💰 Total: €{invoices.reduce((sum, invoice) => sum + (invoice.total || 0), 0).toFixed(2)}
+              💰 Total: €{invoices.reduce((sum, invoice) => sum + calcularTotalFactura(invoice), 0).toFixed(2)}
             </span>
           )}
         </div>
@@ -852,7 +869,7 @@ export function FacturasProcesadasPage() {
                   <div className="grid grid-cols-3 gap-6">
                     <div className="flex items-center min-w-0"><User className="mr-2 h-4 w-4 flex-shrink-0" /> <span className="font-semibold text-gray-700 whitespace-nowrap">Proveedor:</span> <span className="ml-1 text-gray-900 truncate">{invoice.proveedor}</span></div>
                     <div className="flex items-center min-w-0"><Building className="mr-2 h-4 w-4 flex-shrink-0" /> <span className="font-semibold text-gray-700 whitespace-nowrap">Cliente:</span> <span className="ml-1 text-gray-900 truncate">{invoice.cliente}</span></div>
-                    <div className="flex items-center min-w-0"><span className="mr-2 h-4 w-4 flex items-center justify-center text-sm font-bold text-green-600 flex-shrink-0">💰</span> <span className="font-semibold text-gray-700 whitespace-nowrap">Total:</span> <span className="ml-1 text-green-600 font-bold truncate">{invoice.total ? `€${invoice.total.toFixed(2)}` : 'N/A'}</span></div>
+                    <div className="flex items-center min-w-0"><span className="mr-2 h-4 w-4 flex items-center justify-center text-sm font-bold text-green-600 flex-shrink-0">💰</span> <span className="font-semibold text-gray-700 whitespace-nowrap">Total:</span> <span className="ml-1 text-green-600 font-bold truncate">€{calcularTotalFactura(invoice).toFixed(2)}</span></div>
                   </div>
                 </div>
               </div>
