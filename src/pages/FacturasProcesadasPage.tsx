@@ -1090,6 +1090,7 @@ export function FacturasProcesadasPage() {
                     <th scope="col" className="px-3 py-3">Volumen (L)</th>
                     <th scope="col" className="px-3 py-3">Precio Ud.</th>
                     <th scope="col" className="px-3 py-3">% Dto.</th>
+                    <th scope="col" className="px-3 py-3">Imp. Dto.</th>
                     <th scope="col" className="px-3 py-3">% IVA</th>
                     <th scope="col" className="px-3 py-3">Neto</th>
                     <th scope="col" className="px-3 py-3">Importe</th>
@@ -1152,6 +1153,7 @@ export function FacturasProcesadasPage() {
                           )}
                         </td>
                         <td className="px-3 py-4">{item.dto || 0}</td>
+                        <td className="px-3 py-4">{item.importeDescuento || 0}</td>
                         <td className="px-3 py-4">
                           {editingIVA && editingIVA.invoiceId === invoice.id && editingIVA.itemIndex === index ? (
                             <div className="flex items-center space-x-2">
@@ -1199,8 +1201,8 @@ export function FacturasProcesadasPage() {
                               ? tempIVA
                               : (item.iva || datosArticulo.iva || 0);
 
-                            // Calcular importe neto: precioUd * unidades * (1 - dto/100)
-                            const importeNeto = precioActual * (item.unidades || 1) * (1 - (item.dto || 0) / 100);
+                            // Calcular importe neto: (precioUd * unidades * (1 - dto/100)) + importeDescuento
+                            const importeNeto = (precioActual * (item.unidades || 1) * (1 - (item.dto || 0) / 100)) + (item.importeDescuento || 0);
                             return importeNeto.toFixed(2);
                           })()}
                         </td>
@@ -1215,7 +1217,7 @@ export function FacturasProcesadasPage() {
                               : (item.iva || datosArticulo.iva || 0);
 
                             // Calcular importe neto primero
-                            const importeNeto = precioActual * (item.unidades || 1) * (1 - (item.dto || 0) / 100);
+                            const importeNeto = (precioActual * (item.unidades || 1) * (1 - (item.dto || 0) / 100)) + (item.importeDescuento || 0);
                             // Luego calcular importe total: importeNeto * (1 + IVA/100)
                             const importeTotal = importeNeto * (1 + ivaActual / 100);
                             return importeTotal.toFixed(2);
