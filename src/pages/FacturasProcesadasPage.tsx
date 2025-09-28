@@ -206,8 +206,18 @@ export function FacturasProcesadasPage() {
     if (!editingIVA) return;
 
     try {
+      console.log('🔄 [IVA] Iniciando actualización de IVA...');
+      console.log('📋 [IVA] editingIVA:', editingIVA);
+      console.log('💰 [IVA] tempIVA:', tempIVA);
+
       const invoice = invoices.find(inv => inv.id === editingIVA.invoiceId);
-      if (!invoice || !invoice.items[editingIVA.itemIndex]) return;
+      if (!invoice || !invoice.items[editingIVA.itemIndex]) {
+        console.error('❌ [IVA] Factura o item no encontrado');
+        alert('Factura o item no encontrado');
+        return;
+      }
+
+      console.log('📄 [IVA] Factura encontrada:', invoice.numero_factura);
 
       // Actualizar el item en la base de datos
       const updatedItems = [...invoice.items];
@@ -215,6 +225,8 @@ export function FacturasProcesadasPage() {
         ...updatedItems[editingIVA.itemIndex],
         iva: tempIVA
       };
+
+      console.log('🔧 [IVA] Items actualizados:', updatedItems);
 
       // Recalcular el total de la factura
       let newTotal = 0;
@@ -226,19 +238,27 @@ export function FacturasProcesadasPage() {
       });
       newTotal = Math.round(newTotal * 100) / 100;
 
+      console.log('💵 [IVA] Nuevo total calculado:', newTotal);
+
+      console.log('🔗 [IVA] Enviando actualización a Supabase...');
       const { error } = await supabase
         .from('processed_invoices')
-        .update({ 
+        .update({
           items: updatedItems,
           total: newTotal
         })
         .eq('id', editingIVA.invoiceId);
 
       if (error) {
-        console.error('Error updating IVA:', error);
-        alert('Error al guardar el IVA');
+        console.error('❌ [IVA] Error de Supabase:', error);
+        console.error('❌ [IVA] Código de error:', error.code);
+        console.error('❌ [IVA] Mensaje de error:', error.message);
+        console.error('❌ [IVA] Detalles del error:', error.details);
+        alert(`Error al guardar el IVA: ${error.message}`);
         return;
       }
+
+      console.log('✅ [IVA] Actualización exitosa en BD');
 
       // Actualizar el estado local
       setInvoices(prev => prev.map(inv =>
@@ -247,11 +267,13 @@ export function FacturasProcesadasPage() {
           : inv
       ));
 
+      console.log('✅ [IVA] Estado local actualizado');
       setEditingIVA(null);
       setTempIVA(0);
+      console.log('✅ [IVA] Edición finalizada');
     } catch (error) {
-      console.error('Error saving IVA:', error);
-      alert('Error al guardar el IVA');
+      console.error('❌ [IVA] Error inesperado:', error);
+      alert('Error inesperado al guardar el IVA');
     }
   };
 
