@@ -50,9 +50,13 @@ export function MaestroDeDatosPage() {
       const { data, error } = await supabase
         .from('articulos')
         .select('*')
-        .limit(10000); // Aumentar límite para cargar todos los artículos
+        .range(0, 9999); // Obtener los primeros 10,000 artículos
+
       if (error) throw error;
-      if (data) setArticulos(data);
+
+      if (data) {
+        setArticulos(data);
+      }
     } catch (err: any) {
       setError('Error al obtener los artículos: ' + err.message);
     } finally {
@@ -158,7 +162,6 @@ export function MaestroDeDatosPage() {
       if (error) throw error;
 
       if (data && data.length > 0) {
-        console.log('✅ [MAESTRO] Artículo agregado en BD:', data[0]);
         setArticulos(prev => [...prev, data[0]]);
         showSuccessMessage('Artículo añadido correctamente');
       }
@@ -227,12 +230,6 @@ export function MaestroDeDatosPage() {
       if (data && data.length > 0) {
         console.log('✅ [MAESTRO] Proveedor agregado:', data[0]);
         console.log('📊 [MAESTRO] Total proveedores ahora:', proveedores.length + 1);
-
-        // Log específico para el artículo 1739
-        if (data[0].id === 1739) {
-          console.log('🎯 [MAESTRO] Proveedor 1739 agregado exitosamente:', data[0]);
-        }
-
         setProveedores(prev => [...prev, data[0]]);
         showSuccessMessage('Proveedor añadido correctamente');
       }
@@ -326,27 +323,13 @@ export function MaestroDeDatosPage() {
 
           const searchTerm = searchTerms.articulos.toLowerCase().trim();
 
-          // Log específico para el artículo ID 1739 cuando se busque
-          if (a.id === 1739 && searchTerm) {
-            console.log('🎯 [BÚSQUEDA] Artículo 1739 encontrado en estado:', a);
-            console.log('🔍 [BÚSQUEDA] Buscando término:', searchTerm);
-          }
-
           return (
-            (a.subfamilia && typeof a.subfamilia === 'string' && a.subfamilia.toLowerCase().includes(searchTerm)) ||
-            (a.codigo && typeof a.codigo === 'string' && a.codigo.toLowerCase().includes(searchTerm)) ||
-            (a.descripcion && typeof a.descripcion === 'string' && a.descripcion.toLowerCase().includes(searchTerm)) ||
-            (a.id && a.id.toString().includes(searchTerm))
+            (a.subfamilia && String(a.subfamilia).toLowerCase().includes(searchTerm)) ||
+            (a.codigo && String(a.codigo).toLowerCase().includes(searchTerm)) ||
+            (a.descripcion && String(a.descripcion).toLowerCase().includes(searchTerm)) ||
+            (a.id && String(a.id).includes(searchTerm))
           );
         });
-
-        // Log para ver si el artículo 1739 está en los resultados filtrados
-        const articulo1739Filtrado = filteredArticulos.find(a => a.id === 1739);
-        if (searchTerms.articulos.trim() && articulo1739Filtrado) {
-          console.log('✅ [BÚSQUEDA] Artículo 1739 está en resultados filtrados');
-        } else if (searchTerms.articulos.trim()) {
-          console.log('❌ [BÚSQUEDA] Artículo 1739 NO está en resultados filtrados');
-        }
         return (
           <section>
             <div className="flex justify-between items-center mb-6">
@@ -396,6 +379,7 @@ export function MaestroDeDatosPage() {
                     <table className="w-full text-sm text-left text-slate-700">
                       <thead className="text-xs text-slate-800 uppercase bg-slate-100">
                         <tr>
+                          <th scope="col" className="px-6 py-3">ID</th>
                           <th scope="col" className="px-6 py-3">Subfamilia</th>
                           <th scope="col" className="px-6 py-3">Código</th>
                           <th scope="col" className="px-6 py-3">Descripción</th>
@@ -409,6 +393,7 @@ export function MaestroDeDatosPage() {
                             key={a.id}
                             item={a}
                             fields={[
+                              { key: 'id', label: 'ID', type: 'number' },
                               { key: 'subfamilia', label: 'Subfamilia' },
                               { key: 'codigo', label: 'Código' },
                               { key: 'descripcion', label: 'Descripción' },
