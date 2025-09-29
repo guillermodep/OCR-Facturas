@@ -379,7 +379,6 @@ export function MaestroDeDatosPage() {
                     <table className="w-full text-sm text-left text-slate-700">
                       <thead className="text-xs text-slate-800 uppercase bg-slate-100">
                         <tr>
-                          <th scope="col" className="px-6 py-3">ID</th>
                           <th scope="col" className="px-6 py-3">Subfamilia</th>
                           <th scope="col" className="px-6 py-3">Código</th>
                           <th scope="col" className="px-6 py-3">Descripción</th>
@@ -393,7 +392,6 @@ export function MaestroDeDatosPage() {
                             key={a.id}
                             item={a}
                             fields={[
-                              { key: 'id', label: 'ID', type: 'number' },
                               { key: 'subfamilia', label: 'Subfamilia' },
                               { key: 'codigo', label: 'Código' },
                               { key: 'descripcion', label: 'Descripción' },
