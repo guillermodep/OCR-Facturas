@@ -501,22 +501,24 @@ export function MaestroDeDatosPage() {
               </button>
             </div>
 
-            <AddRowForm 
-              fields={[
-                { 
-                  key: 'subfamilia', 
-                  label: 'Subfamilia',
-                  type: 'select',
-                  options: subfamiliasUnicas,
-                  placeholder: 'Seleccionar subfamilia...'
-                },
-                { key: 'codigo', label: 'Código', required: true },
-                { key: 'descripcion', label: 'Descripción', required: true },
-                { key: 'iva', label: 'IVA', type: 'number', required: true }
-              ]}
-              onAdd={handleAddArticulo}
-              tableName="artículo"
-            />
+            {showAddForm.articulos && (
+              <AddRowForm 
+                fields={[
+                  { 
+                    key: 'subfamilia', 
+                    label: 'Subfamilia',
+                    type: 'select',
+                    options: subfamiliasUnicas,
+                    placeholder: 'Seleccionar subfamilia...'
+                  },
+                  { key: 'codigo', label: 'Código', required: true },
+                  { key: 'descripcion', label: 'Descripción', required: true },
+                  { key: 'iva', label: 'IVA', type: 'number', required: true }
+                ]}
+                onAdd={handleAddArticulo}
+                tableName="artículo"
+              />
+            )}
             <div className="mb-4 flex gap-2">
               <input
                 type="text"
