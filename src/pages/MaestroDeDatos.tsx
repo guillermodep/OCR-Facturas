@@ -225,6 +225,14 @@ export function MaestroDeDatosPage() {
       if (error) throw error;
       
       if (data && data.length > 0) {
+        console.log('✅ [MAESTRO] Proveedor agregado:', data[0]);
+        console.log('📊 [MAESTRO] Total proveedores ahora:', proveedores.length + 1);
+
+        // Log específico para el artículo 1739
+        if (data[0].id === 1739) {
+          console.log('🎯 [MAESTRO] Proveedor 1739 agregado exitosamente:', data[0]);
+        }
+
         setProveedores(prev => [...prev, data[0]]);
         showSuccessMessage('Proveedor añadido correctamente');
       }
@@ -317,6 +325,13 @@ export function MaestroDeDatosPage() {
           if (!searchTerms.articulos.trim()) return true;
 
           const searchTerm = searchTerms.articulos.toLowerCase().trim();
+
+          // Log específico para el artículo ID 1739 cuando se busque
+          if (a.id === 1739 && searchTerm) {
+            console.log('🎯 [BÚSQUEDA] Artículo 1739 encontrado en estado:', a);
+            console.log('🔍 [BÚSQUEDA] Buscando término:', searchTerm);
+          }
+
           return (
             (a.subfamilia && typeof a.subfamilia === 'string' && a.subfamilia.toLowerCase().includes(searchTerm)) ||
             (a.codigo && typeof a.codigo === 'string' && a.codigo.toLowerCase().includes(searchTerm)) ||
@@ -324,6 +339,14 @@ export function MaestroDeDatosPage() {
             (a.id && a.id.toString().includes(searchTerm))
           );
         });
+
+        // Log para ver si el artículo 1739 está en los resultados filtrados
+        const articulo1739Filtrado = filteredArticulos.find(a => a.id === 1739);
+        if (searchTerms.articulos.trim() && articulo1739Filtrado) {
+          console.log('✅ [BÚSQUEDA] Artículo 1739 está en resultados filtrados');
+        } else if (searchTerms.articulos.trim()) {
+          console.log('❌ [BÚSQUEDA] Artículo 1739 NO está en resultados filtrados');
+        }
         return (
           <section>
             <div className="flex justify-between items-center mb-6">
