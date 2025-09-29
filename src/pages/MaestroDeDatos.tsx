@@ -300,15 +300,25 @@ export function MaestroDeDatosPage() {
   const renderContent = () => {
     switch (activeTab) {
       case 'articulos':
+        // Obtener subfamilias únicas existentes
+        const subfamiliasUnicas = Array.from(
+          new Set(
+            articulos
+              .map(a => a.subfamilia)
+              .filter((s): s is string => s !== null && s !== undefined && s.trim() !== '')
+              .sort()
+          )
+        );
+
         const filteredArticulos = articulos.filter(a => {
-          if (!searchTerms.articulos.trim()) return true; // Si no hay búsqueda, mostrar todos
+          if (!searchTerms.articulos.trim()) return true;
 
           const searchTerm = searchTerms.articulos.toLowerCase().trim();
           return (
             (a.subfamilia && typeof a.subfamilia === 'string' && a.subfamilia.toLowerCase().includes(searchTerm)) ||
             (a.codigo && typeof a.codigo === 'string' && a.codigo.toLowerCase().includes(searchTerm)) ||
             (a.descripcion && typeof a.descripcion === 'string' && a.descripcion.toLowerCase().includes(searchTerm)) ||
-            (a.id && a.id.toString().includes(searchTerm)) // También buscar por ID
+            (a.id && a.id.toString().includes(searchTerm))
           );
         });
         return (
@@ -319,7 +329,13 @@ export function MaestroDeDatosPage() {
             </div>
             <AddRowForm 
               fields={[
-                { key: 'subfamilia', label: 'Subfamilia' },
+                { 
+                  key: 'subfamilia', 
+                  label: 'Subfamilia',
+                  type: 'select',
+                  options: subfamiliasUnicas,
+                  placeholder: 'Seleccionar subfamilia...'
+                },
                 { key: 'codigo', label: 'Código', required: true },
                 { key: 'descripcion', label: 'Descripción', required: true },
                 { key: 'iva', label: 'IVA', type: 'number', required: true }

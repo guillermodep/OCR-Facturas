@@ -4,8 +4,10 @@ import { Plus } from 'lucide-react';
 interface Field {
   key: string;
   label: string;
-  type?: 'text' | 'number';
+  type?: 'text' | 'number' | 'select';
   required?: boolean;
+  options?: string[];
+  placeholder?: string;
 }
 
 interface AddRowFormProps {
@@ -18,9 +20,19 @@ export const AddRowForm: React.FC<AddRowFormProps> = ({ fields, onAdd, tableName
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [customInputs, setCustomInputs] = useState<Record<string, boolean>>({});
 
   const handleChange = (key: string, value: string) => {
     setFormData(prev => ({ ...prev, [key]: value }));
+
+    // Handle custom input toggle for select fields
+    if (value === '__nuevo__') {
+      setCustomInputs(prev => ({ ...prev, [key]: true }));
+      setFormData(prev => ({ ...prev, [key]: '' }));
+    } else {
+      setCustomInputs(prev => ({ ...prev, [key]: false }));
+    }
+
     // Clear error when field is edited
     if (errors[key]) {
       setErrors(prev => {
@@ -76,14 +88,43 @@ export const AddRowForm: React.FC<AddRowFormProps> = ({ fields, onAdd, tableName
                   <label className="text-sm font-medium text-slate-700 mb-1">
                     {field.label} {field.required && <span className="text-red-500">*</span>}
                   </label>
-                  <input
-                    type={field.type || 'text'}
-                    value={formData[field.key] || ''}
-                    onChange={(e) => handleChange(field.key, e.target.value)}
-                    className={`p-2 border rounded-md ${
-                      errors[field.key] ? 'border-red-500' : 'border-slate-300'
-                    } focus:outline-none focus:ring-2 focus:ring-indigo-500`}
-                  />
+                  {field.type === 'select' ? (
+                    <div className="space-y-2">
+                      <select
+                        value={customInputs[field.key] ? '__nuevo__' : (formData[field.key] || '')}
+                        onChange={(e) => handleChange(field.key, e.target.value)}
+                        className={`p-2 border rounded-md ${
+                          errors[field.key] ? 'border-red-500' : 'border-slate-300'
+                        } focus:outline-none focus:ring-2 focus:ring-indigo-500`}
+                      >
+                        <option value="">{field.placeholder || 'Seleccionar...'}</option>
+                        {field.options?.map(option => (
+                          <option key={option} value={option}>{option}</option>
+                        ))}
+                        <option value="__nuevo__">➕ Nuevo...</option>
+                      </select>
+                      {customInputs[field.key] && (
+                        <input
+                          type="text"
+                          placeholder={`Nueva ${field.label.toLowerCase()}...`}
+                          value={formData[field.key] || ''}
+                          onChange={(e) => handleChange(field.key, e.target.value)}
+                          className={`p-2 border rounded-md ${
+                            errors[field.key] ? 'border-red-500' : 'border-slate-300'
+                          } focus:outline-none focus:ring-2 focus:ring-indigo-500`}
+                        />
+                      )}
+                    </div>
+                  ) : (
+                    <input
+                      type={field.type || 'text'}
+                      value={formData[field.key] || ''}
+                      onChange={(e) => handleChange(field.key, e.target.value)}
+                      className={`p-2 border rounded-md ${
+                        errors[field.key] ? 'border-red-500' : 'border-slate-300'
+                      } focus:outline-none focus:ring-2 focus:ring-indigo-500`}
+                    />
+                  )}
                   {errors[field.key] && (
                     <p className="text-red-500 text-xs mt-1">{errors[field.key]}</p>
                   )}
@@ -97,6 +138,7 @@ export const AddRowForm: React.FC<AddRowFormProps> = ({ fields, onAdd, tableName
                   setIsFormOpen(false);
                   setFormData({});
                   setErrors({});
+                  setCustomInputs({});
                 }}
                 className="px-4 py-2 border border-slate-300 rounded-md text-slate-700 hover:bg-slate-50"
               >
