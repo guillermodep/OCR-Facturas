@@ -495,30 +495,24 @@ export function MaestroDeDatosPage() {
                 <Upload size={16} />
                 Carga Masiva
               </button>
-              <button onClick={() => setShowAddForm(prev => ({ ...prev, articulos: !prev.articulos }))} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2">
-                <Plus size={16} />
-                {showAddForm.articulos ? 'Cancelar' : 'Añadir Artículo'}
-              </button>
             </div>
 
-            {showAddForm.articulos && (
-              <AddRowForm 
-                fields={[
-                  { 
-                    key: 'subfamilia', 
-                    label: 'Subfamilia',
-                    type: 'select',
-                    options: subfamiliasUnicas,
-                    placeholder: 'Seleccionar subfamilia...'
-                  },
-                  { key: 'codigo', label: 'Código', required: true },
-                  { key: 'descripcion', label: 'Descripción', required: true },
-                  { key: 'iva', label: 'IVA', type: 'number', required: true }
-                ]}
-                onAdd={handleAddArticulo}
-                tableName="artículo"
-              />
-            )}
+            <AddRowForm 
+              fields={[
+                { 
+                  key: 'subfamilia', 
+                  label: 'Subfamilia',
+                  type: 'select',
+                  options: subfamiliasUnicas,
+                  placeholder: 'Seleccionar subfamilia...'
+                },
+                { key: 'codigo', label: 'Código', required: true },
+                { key: 'descripcion', label: 'Descripción', required: true },
+                { key: 'iva', label: 'IVA', type: 'number', required: true }
+              ]}
+              onAdd={handleAddArticulo}
+              tableName="artículo"
+            />
             <div className="mb-4 flex gap-2">
               <input
                 type="text"
