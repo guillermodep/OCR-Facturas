@@ -635,17 +635,15 @@ export function MaestroDeDatosPage() {
               </button>
             </div>
 
-            {showAddForm.proveedores && (
-              <AddRowForm 
-                fields={[
-                  { key: 'codigo', label: 'Código', required: true },
-                  { key: 'nombre', label: 'Nombre', required: true },
-                  { key: 'cif', label: 'CIF', required: true }
-                ]}
-                onAdd={handleAddProveedor}
-                tableName="proveedor"
-              />
-            )}
+            <AddRowForm 
+              fields={[
+                { key: 'codigo', label: 'Código', required: true },
+                { key: 'nombre', label: 'Nombre', required: true },
+                { key: 'cif', label: 'CIF', required: true }
+              ]}
+              onAdd={handleAddProveedor}
+              tableName="proveedor"
+            />
             <div className="mb-4">
               <input
                 type="text"
@@ -759,17 +757,15 @@ export function MaestroDeDatosPage() {
               </button>
             </div>
 
-            {showAddForm.delegaciones && (
-              <AddRowForm 
-                fields={[
-                  { key: 'delegacion', label: 'Delegación', required: true },
-                  { key: 'nombre_comercial', label: 'Nombre Comercial', required: true },
-                  { key: 'razon_social', label: 'Razón Social', required: true }
-                ]}
-                onAdd={handleAddDelegacion}
-                tableName="delegación"
-              />
-            )}
+            <AddRowForm 
+              fields={[
+                { key: 'delegacion', label: 'Delegación', required: true },
+                { key: 'nombre_comercial', label: 'Nombre Comercial', required: true },
+                { key: 'razon_social', label: 'Razón Social', required: true }
+              ]}
+              onAdd={handleAddDelegacion}
+              tableName="delegación"
+            />
             <div className="mb-4">
               <input
                 type="text"
