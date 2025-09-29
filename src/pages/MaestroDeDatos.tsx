@@ -629,10 +629,6 @@ export function MaestroDeDatosPage() {
                 <Upload size={16} />
                 Carga Masiva
               </button>
-              <button onClick={() => setShowAddForm(prev => ({ ...prev, proveedores: !prev.proveedores }))} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2">
-                <Plus size={16} />
-                {showAddForm.proveedores ? 'Cancelar' : 'Añadir Proveedor'}
-              </button>
             </div>
 
             <AddRowForm 
@@ -750,10 +746,6 @@ export function MaestroDeDatosPage() {
               >
                 <Upload size={16} />
                 Carga Masiva
-              </button>
-              <button onClick={() => setShowAddForm(prev => ({ ...prev, delegaciones: !prev.delegaciones }))} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2">
-                <Plus size={16} />
-                {showAddForm.delegaciones ? 'Cancelar' : 'Añadir Delegación'}
               </button>
             </div>
 
