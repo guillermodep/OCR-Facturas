@@ -134,24 +134,33 @@ export function MaestroDeDatosPage() {
   const handleAddArticulo = async (newItem: Record<string, any>) => {
     try {
       setSaving(prev => ({ ...prev, articulos: true }));
-      
+
       // Convertir IVA a número si existe
       if (newItem.iva) {
         newItem.iva = Number(newItem.iva);
       }
-      
+
+      // Asegurar que los campos de búsqueda sean strings válidos
+      if (newItem.subfamilia) newItem.subfamilia = String(newItem.subfamilia).trim();
+      if (newItem.codigo) newItem.codigo = String(newItem.codigo).trim();
+      if (newItem.descripcion) newItem.descripcion = String(newItem.descripcion).trim();
+
+      console.log('🔧 [MAESTRO] Agregando artículo:', newItem);
+
       const { data, error } = await supabase
         .from('articulos')
         .insert([newItem])
         .select();
-      
+
       if (error) throw error;
-      
+
       if (data && data.length > 0) {
+        console.log('✅ [MAESTRO] Artículo agregado en BD:', data[0]);
         setArticulos(prev => [...prev, data[0]]);
         showSuccessMessage('Artículo añadido correctamente');
       }
     } catch (err: any) {
+      console.error('❌ [MAESTRO] Error al añadir artículo:', err);
       setError('Error al añadir el artículo: ' + err.message);
     } finally {
       setSaving(prev => ({ ...prev, articulos: false }));
@@ -292,11 +301,14 @@ export function MaestroDeDatosPage() {
     switch (activeTab) {
       case 'articulos':
         const filteredArticulos = articulos.filter(a => {
-          const searchTerm = searchTerms.articulos.toLowerCase();
+          if (!searchTerms.articulos.trim()) return true; // Si no hay búsqueda, mostrar todos
+
+          const searchTerm = searchTerms.articulos.toLowerCase().trim();
           return (
-            (a.subfamilia && a.subfamilia.toLowerCase().includes(searchTerm)) ||
-            (a.codigo && a.codigo.toLowerCase().includes(searchTerm)) ||
-            (a.descripcion && a.descripcion.toLowerCase().includes(searchTerm))
+            (a.subfamilia && typeof a.subfamilia === 'string' && a.subfamilia.toLowerCase().includes(searchTerm)) ||
+            (a.codigo && typeof a.codigo === 'string' && a.codigo.toLowerCase().includes(searchTerm)) ||
+            (a.descripcion && typeof a.descripcion === 'string' && a.descripcion.toLowerCase().includes(searchTerm)) ||
+            (a.id && a.id.toString().includes(searchTerm)) // También buscar por ID
           );
         });
         return (
@@ -315,14 +327,21 @@ export function MaestroDeDatosPage() {
               onAdd={handleAddArticulo}
               tableName="artículo"
             />
-            <div className="mb-4">
+            <div className="mb-4 flex gap-2">
               <input
                 type="text"
-                placeholder="Buscar por subfamilia, código o descripción..."
-                className="w-full p-2 border border-slate-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                placeholder="Buscar por subfamilia, código, descripción o ID..."
+                className="flex-1 p-2 border border-slate-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
                 value={searchTerms.articulos}
                 onChange={(e) => setSearchTerms(prev => ({ ...prev, articulos: e.target.value }))}
               />
+              <button
+                onClick={fetchArticulos}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                title="Refrescar datos"
+              >
+                🔄
+              </button>
             </div>
             <div className="bg-white p-6 rounded-xl shadow-md border border-slate-200">
               {loading.articulos ? (
