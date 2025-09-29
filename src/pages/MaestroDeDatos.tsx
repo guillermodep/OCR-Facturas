@@ -314,13 +314,27 @@ export function MaestroDeDatosPage() {
           if (!searchTerms.articulos.trim()) return true;
 
           const searchTerm = searchTerms.articulos.toLowerCase().trim();
-          return (
+          console.log('🔍 [BÚSQUEDA] Buscando:', searchTerm);
+          console.log('📋 [BÚSQUEDA] Artículo actual:', {
+            id: a.id,
+            subfamilia: a.subfamilia,
+            codigo: a.codigo,
+            descripcion: a.descripcion
+          });
+
+          const matches = (
             (a.subfamilia && typeof a.subfamilia === 'string' && a.subfamilia.toLowerCase().includes(searchTerm)) ||
             (a.codigo && typeof a.codigo === 'string' && a.codigo.toLowerCase().includes(searchTerm)) ||
             (a.descripcion && typeof a.descripcion === 'string' && a.descripcion.toLowerCase().includes(searchTerm)) ||
             (a.id && a.id.toString().includes(searchTerm))
           );
+
+          console.log('✅ [BÚSQUEDA] ¿Coincide?', matches);
+          return matches;
         });
+
+        console.log('📊 [BÚSQUEDA] Total artículos en estado:', articulos.length);
+        console.log('🎯 [BÚSQUEDA] Artículos filtrados:', filteredArticulos.length);
         return (
           <section>
             <div className="flex justify-between items-center mb-6">
