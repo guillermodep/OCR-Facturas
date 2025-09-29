@@ -471,7 +471,7 @@ export function MaestroDeDatosPage() {
             </div>
 
             {/* Botones de acciones masivas */}
-            <div className="mb-4 flex gap-2">
+            <div className="mb-4 flex flex-wrap gap-2 items-center">
               <button
                 onClick={() => handleDeleteSelected('articulos')}
                 disabled={selectedItems.articulos.length === 0 || saving.articulos}
@@ -495,24 +495,30 @@ export function MaestroDeDatosPage() {
                 <Upload size={16} />
                 Carga Masiva
               </button>
+              <button onClick={() => setShowAddForm(prev => ({ ...prev, articulos: !prev.articulos }))} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2">
+                <Plus size={16} />
+                {showAddForm.articulos ? 'Cancelar' : 'Añadir Artículo'}
+              </button>
             </div>
 
-            <AddRowForm 
-              fields={[
-                { 
-                  key: 'subfamilia', 
-                  label: 'Subfamilia',
-                  type: 'select',
-                  options: subfamiliasUnicas,
-                  placeholder: 'Seleccionar subfamilia...'
-                },
-                { key: 'codigo', label: 'Código', required: true },
-                { key: 'descripcion', label: 'Descripción', required: true },
-                { key: 'iva', label: 'IVA', type: 'number', required: true }
-              ]}
-              onAdd={handleAddArticulo}
-              tableName="artículo"
-            />
+            {showAddForm.articulos && (
+              <AddRowForm 
+                fields={[
+                  { 
+                    key: 'subfamilia', 
+                    label: 'Subfamilia',
+                    type: 'select',
+                    options: subfamiliasUnicas,
+                    placeholder: 'Seleccionar subfamilia...'
+                  },
+                  { key: 'codigo', label: 'Código', required: true },
+                  { key: 'descripcion', label: 'Descripción', required: true },
+                  { key: 'iva', label: 'IVA', type: 'number', required: true }
+                ]}
+                onAdd={handleAddArticulo}
+                tableName="artículo"
+              />
+            )}
             <div className="mb-4 flex gap-2">
               <input
                 type="text"
@@ -605,7 +611,7 @@ export function MaestroDeDatosPage() {
             </div>
 
             {/* Botones de acciones masivas */}
-            <div className="mb-4 flex gap-2">
+            <div className="mb-4 flex flex-wrap gap-2 items-center">
               <button
                 onClick={() => handleDeleteSelected('proveedores')}
                 disabled={selectedItems.proveedores.length === 0 || saving.proveedores}
@@ -629,17 +635,23 @@ export function MaestroDeDatosPage() {
                 <Upload size={16} />
                 Carga Masiva
               </button>
+              <button onClick={() => setShowAddForm(prev => ({ ...prev, proveedores: !prev.proveedores }))} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2">
+                <Plus size={16} />
+                {showAddForm.proveedores ? 'Cancelar' : 'Añadir Proveedor'}
+              </button>
             </div>
 
-            <AddRowForm 
-              fields={[
-                { key: 'codigo', label: 'Código', required: true },
-                { key: 'nombre', label: 'Nombre', required: true },
-                { key: 'cif', label: 'CIF', required: true }
-              ]}
-              onAdd={handleAddProveedor}
-              tableName="proveedor"
-            />
+            {showAddForm.proveedores && (
+              <AddRowForm 
+                fields={[
+                  { key: 'codigo', label: 'Código', required: true },
+                  { key: 'nombre', label: 'Nombre', required: true },
+                  { key: 'cif', label: 'CIF', required: true }
+                ]}
+                onAdd={handleAddProveedor}
+                tableName="proveedor"
+              />
+            )}
             <div className="mb-4">
               <input
                 type="text"
@@ -723,7 +735,7 @@ export function MaestroDeDatosPage() {
             </div>
 
             {/* Botones de acciones masivas */}
-            <div className="mb-4 flex gap-2">
+            <div className="mb-4 flex flex-wrap gap-2 items-center">
               <button
                 onClick={() => handleDeleteSelected('delegaciones')}
                 disabled={selectedItems.delegaciones.length === 0 || saving.delegaciones}
@@ -747,17 +759,23 @@ export function MaestroDeDatosPage() {
                 <Upload size={16} />
                 Carga Masiva
               </button>
+              <button onClick={() => setShowAddForm(prev => ({ ...prev, delegaciones: !prev.delegaciones }))} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2">
+                <Plus size={16} />
+                {showAddForm.delegaciones ? 'Cancelar' : 'Añadir Delegación'}
+              </button>
             </div>
 
-            <AddRowForm 
-              fields={[
-                { key: 'delegacion', label: 'Delegación', required: true },
-                { key: 'nombre_comercial', label: 'Nombre Comercial', required: true },
-                { key: 'razon_social', label: 'Razón Social', required: true }
-              ]}
-              onAdd={handleAddDelegacion}
-              tableName="delegación"
-            />
+            {showAddForm.delegaciones && (
+              <AddRowForm 
+                fields={[
+                  { key: 'delegacion', label: 'Delegación', required: true },
+                  { key: 'nombre_comercial', label: 'Nombre Comercial', required: true },
+                  { key: 'razon_social', label: 'Razón Social', required: true }
+                ]}
+                onAdd={handleAddDelegacion}
+                tableName="delegación"
+              />
+            )}
             <div className="mb-4">
               <input
                 type="text"
