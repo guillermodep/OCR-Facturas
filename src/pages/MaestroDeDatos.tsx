@@ -112,12 +112,20 @@ export function MaestroDeDatosPage() {
 
     const selectedData = items.filter(item => selectedItems[tab].includes(item.id));
     
-    // Convertir a CSV
-    const headers = Object.keys(selectedData[0] || {});
+    // Definir campos exportables por maestro (solo los que se pueden importar)
+    const exportableFields = {
+      articulos: ['subfamilia', 'codigo', 'descripcion', 'iva'],
+      proveedores: ['codigo', 'nombre', 'cif'],
+      delegaciones: ['delegacion', 'nombre_comercial', 'razon_social']
+    };
+
+    const fields = exportableFields[tab];
+    
+    // Convertir a CSV solo con campos exportables
     const csvContent = [
-      headers.join(','),
+      fields.join(','),
       ...selectedData.map(item => 
-        headers.map(header => `"${item[header] || ''}"`).join(',')
+        fields.map(field => `"${item[field] || ''}"`).join(',')
       )
     ].join('\n');
 
@@ -867,6 +875,8 @@ export function MaestroDeDatosPage() {
           { key: 'descripcion', label: 'Descripción', required: true },
           { key: 'iva', label: 'IVA', type: 'number', required: true }
         ]}
+        existingData={articulos}
+        duplicateKey="codigo"
         onImport={(data) => handleBulkImport('articulos', data)}
         isOpen={bulkImportOpen.articulos}
         onClose={() => setBulkImportOpen(prev => ({ ...prev, articulos: false }))}
@@ -879,6 +889,8 @@ export function MaestroDeDatosPage() {
           { key: 'nombre', label: 'Nombre', required: true },
           { key: 'cif', label: 'CIF', required: true }
         ]}
+        existingData={proveedores}
+        duplicateKey="cif"
         onImport={(data) => handleBulkImport('proveedores', data)}
         isOpen={bulkImportOpen.proveedores}
         onClose={() => setBulkImportOpen(prev => ({ ...prev, proveedores: false }))}
@@ -891,6 +903,8 @@ export function MaestroDeDatosPage() {
           { key: 'nombre_comercial', label: 'Nombre Comercial', required: true },
           { key: 'razon_social', label: 'Razón Social', required: true }
         ]}
+        existingData={delegaciones}
+        duplicateKey="delegacion"
         onImport={(data) => handleBulkImport('delegaciones', data)}
         isOpen={bulkImportOpen.delegaciones}
         onClose={() => setBulkImportOpen(prev => ({ ...prev, delegaciones: false }))}

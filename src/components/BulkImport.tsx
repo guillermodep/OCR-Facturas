@@ -5,6 +5,8 @@ import { Upload, AlertTriangle, CheckCircle, X } from 'lucide-react';
 interface BulkImportProps {
   tableName: string;
   fields: { key: string; label: string; required?: boolean; type?: 'number' }[];
+  existingData: Record<string, any>[];
+  duplicateKey: string; // Campo por el que detectar duplicados
   onImport: (data: Record<string, any>[]) => Promise<void>;
   isOpen: boolean;
   onClose: () => void;
@@ -13,6 +15,8 @@ interface BulkImportProps {
 export const BulkImport: React.FC<BulkImportProps> = ({
   tableName,
   fields,
+  existingData,
+  duplicateKey,
   onImport,
   isOpen,
   onClose
@@ -20,6 +24,7 @@ export const BulkImport: React.FC<BulkImportProps> = ({
   const [file, setFile] = useState<File | null>(null);
   const [previewData, setPreviewData] = useState<Record<string, any>[]>([]);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [duplicates, setDuplicates] = useState<{ rowIndex: number; existingItem: Record<string, any> }[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -51,10 +56,16 @@ export const BulkImport: React.FC<BulkImportProps> = ({
   const validateAndPreviewData = (data: any[]) => {
     const errors: string[] = [];
     const validData: Record<string, any>[] = [];
+    const foundDuplicates: { rowIndex: number; existingItem: Record<string, any> }[] = [];
 
-    // Validar campos del Excel
+    // Validar campos del archivo
     const requiredFields = fields.filter(f => f.required).map(f => f.key);
     const allFields = fields.map(f => f.key);
+
+    // Crear mapa de valores existentes para comparación rápida
+    const existingValues = new Set(
+      existingData.map(item => String(item[duplicateKey]).toLowerCase().trim())
+    );
 
     data.forEach((row, index) => {
       const rowErrors: string[] = [];
@@ -84,6 +95,20 @@ export const BulkImport: React.FC<BulkImportProps> = ({
         }
       });
 
+      // Verificar duplicados
+      const rowValue = String(row[duplicateKey] || '').toLowerCase().trim();
+      if (rowValue && existingValues.has(rowValue)) {
+        const existingItem = existingData.find(item => 
+          String(item[duplicateKey]).toLowerCase().trim() === rowValue
+        );
+        if (existingItem) {
+          foundDuplicates.push({ 
+            rowIndex: index, 
+            existingItem 
+          });
+        }
+      }
+
       if (rowErrors.length === 0) {
         validData.push(processedRow);
       } else {
@@ -93,6 +118,7 @@ export const BulkImport: React.FC<BulkImportProps> = ({
 
     setPreviewData(validData);
     setValidationErrors(errors);
+    setDuplicates(foundDuplicates);
   };
 
   const handleImport = async () => {
@@ -105,6 +131,7 @@ export const BulkImport: React.FC<BulkImportProps> = ({
       setFile(null);
       setPreviewData([]);
       setValidationErrors([]);
+      setDuplicates([]);
     } catch (error) {
       setValidationErrors(['Error al importar los datos']);
     } finally {
@@ -133,30 +160,41 @@ export const BulkImport: React.FC<BulkImportProps> = ({
           {/* File Upload */}
           <div className="mb-6">
             <label className="block text-sm font-medium text-slate-700 mb-2">
-              Seleccionar archivo Excel (.xlsx, .xls)
+              Seleccionar archivo Excel o CSV (.xlsx, .xls, .csv)
             </label>
             <input
               type="file"
-              accept=".xlsx,.xls"
+              accept=".xlsx,.xls,.csv"
               onChange={handleFileChange}
               className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
             />
           </div>
 
-          {/* Validation Errors */}
-          {validationErrors.length > 0 && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-md">
+          {/* Duplicates Warning */}
+          {duplicates.length > 0 && (
+            <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
               <div className="flex items-start">
-                <AlertTriangle className="text-red-400 mr-2 mt-0.5" size={16} />
+                <AlertTriangle className="text-yellow-400 mr-2 mt-0.5" size={16} />
                 <div>
-                  <h3 className="text-sm font-medium text-red-800">
-                    Errores de validación:
+                  <h3 className="text-sm font-medium text-yellow-800">
+                    Duplicados detectados ({duplicates.length})
                   </h3>
-                  <ul className="mt-2 text-sm text-red-700 list-disc list-inside">
-                    {validationErrors.map((error, index) => (
-                      <li key={index}>{error}</li>
+                  <p className="mt-1 text-sm text-yellow-700">
+                    Las siguientes filas contienen datos que ya existen en la base de datos.
+                    Si continúas con la importación, estos registros serán ignorados.
+                  </p>
+                  <div className="mt-2 space-y-1">
+                    {duplicates.slice(0, 3).map((duplicate, index) => (
+                      <div key={index} className="text-xs text-yellow-700">
+                        Fila {duplicate.rowIndex + 2}: {duplicateKey} "{duplicate.existingItem[duplicateKey]}" ya existe
+                      </div>
                     ))}
-                  </ul>
+                    {duplicates.length > 3 && (
+                      <div className="text-xs text-yellow-700">
+                        ... y {duplicates.length - 3} duplicados más
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -204,7 +242,8 @@ export const BulkImport: React.FC<BulkImportProps> = ({
           <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-md">
             <h4 className="text-sm font-medium text-blue-800 mb-2">Instrucciones:</h4>
             <ul className="text-sm text-blue-700 list-disc list-inside space-y-1">
-              <li>El Excel debe tener los siguientes campos: {fields.map(f => f.label).join(', ')}</li>
+              <li>El archivo debe tener los siguientes campos: {fields.map(f => f.label).join(', ')}</li>
+              <li>Formatos aceptados: Excel (.xlsx, .xls) o CSV (.csv)</li>
               <li>Los campos marcados como obligatorios deben tener valores</li>
               <li>Los campos numéricos deben contener números válidos</li>
               <li>La primera fila debe contener los nombres de las columnas</li>

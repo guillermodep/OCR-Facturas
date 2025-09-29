@@ -21,7 +21,7 @@ export const EditableRow: React.FC<EditableRowProps> = ({
   onDelete
 }) => {
   return (
-    <tr className="bg-white border-b hover:bg-slate-50">
+    <>
       {fields.map((field) => (
         <td key={field.key} className="p-0">
           <EditableCell
@@ -43,6 +43,6 @@ export const EditableRow: React.FC<EditableRowProps> = ({
           <Trash2 size={18} />
         </button>
       </td>
-    </tr>
+    </>
   );
 };
