@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabaseClient';
 import { Loader2, AlertTriangle, Save } from 'lucide-react';
 import { EditableRow } from '../components/EditableRow';
 import { AddRowForm } from '../components/AddRowForm';
+import { BulkImport } from '../components/BulkImport';
 
 interface Articulo {
   id: number;
@@ -37,12 +38,135 @@ export function MaestroDeDatosPage() {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>('articulos');
   const [searchTerms, setSearchTerms] = useState({ articulos: '', proveedores: '', delegaciones: '' });
+  const [selectedItems, setSelectedItems] = useState<{ articulos: number[], proveedores: number[], delegaciones: number[] }>({
+    articulos: [],
+    proveedores: [],
+    delegaciones: []
+  });
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [bulkImportOpen, setBulkImportOpen] = useState<{ articulos: boolean, proveedores: boolean, delegaciones: boolean }>({
+    articulos: false,
+    proveedores: false,
+    delegaciones: false
+  });
 
 
   const showSuccessMessage = (message: string) => {
     setSuccessMessage(message);
     setTimeout(() => setSuccessMessage(null), 3000);
+  };
+
+  // Funciones para selección múltiple
+  const handleSelectItem = (tab: Tab, id: number) => {
+    setSelectedItems(prev => ({
+      ...prev,
+      [tab]: prev[tab].includes(id)
+        ? prev[tab].filter(itemId => itemId !== id)
+        : [...prev[tab], id]
+    }));
+  };
+
+  const handleSelectAll = (tab: Tab, items: any[]) => {
+    const allIds = items.map(item => item.id);
+    setSelectedItems(prev => ({
+      ...prev,
+      [tab]: prev[tab].length === allIds.length ? [] : allIds
+    }));
+  };
+
+  const handleDeleteSelected = async (tab: Tab) => {
+    if (selectedItems[tab].length === 0) return;
+    
+    if (!confirm(`¿Está seguro de que desea eliminar ${selectedItems[tab].length} elemento(s)?`)) return;
+
+    try {
+      setSaving(prev => ({ ...prev, [tab]: true }));
+      
+      const { error } = await supabase
+        .from(tab === 'delegaciones' ? 'delegaciones' : tab.slice(0, -1) + 'es')
+        .delete()
+        .in('id', selectedItems[tab]);
+
+      if (error) throw error;
+
+      // Actualizar estado local
+      if (tab === 'articulos') {
+        setArticulos(prev => prev.filter(item => !selectedItems[tab].includes(item.id)));
+      } else if (tab === 'proveedores') {
+        setProveedores(prev => prev.filter(item => !selectedItems[tab].includes(item.id)));
+      } else if (tab === 'delegaciones') {
+        setDelegaciones(prev => prev.filter(item => !selectedItems[tab].includes(item.id)));
+      }
+
+      setSelectedItems(prev => ({ ...prev, [tab]: [] }));
+      showSuccessMessage(`${selectedItems[tab].length} elemento(s) eliminado(s) correctamente`);
+    } catch (err: any) {
+      setError('Error al eliminar elementos: ' + err.message);
+    } finally {
+      setSaving(prev => ({ ...prev, [tab]: false }));
+    }
+  };
+
+  const handleExportSelected = (tab: Tab, items: any[]) => {
+    if (selectedItems[tab].length === 0) return;
+
+    const selectedData = items.filter(item => selectedItems[tab].includes(item.id));
+    
+    // Convertir a CSV
+    const headers = Object.keys(selectedData[0] || {});
+    const csvContent = [
+      headers.join(','),
+      ...selectedData.map(item => 
+        headers.map(header => `"${item[header] || ''}"`).join(',')
+      )
+    ].join('\n');
+
+    // Descargar archivo
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `${tab}_export_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    showSuccessMessage(`${selectedItems[tab].length} elemento(s) exportado(s) a CSV`);
+  };
+
+  // Funciones para carga masiva
+  const handleBulkImport = async (tab: Tab, data: Record<string, any>[]) => {
+    if (data.length === 0) return;
+
+    try {
+      setSaving(prev => ({ ...prev, [tab]: true }));
+
+      const { data: insertedData, error } = await supabase
+        .from(tab === 'delegaciones' ? 'delegaciones' : tab.slice(0, -1) + 'es')
+        .insert(data)
+        .select();
+
+      if (error) throw error;
+
+      if (insertedData) {
+        // Actualizar estado local
+        if (tab === 'articulos') {
+          setArticulos(prev => [...prev, ...insertedData]);
+        } else if (tab === 'proveedores') {
+          setProveedores(prev => [...prev, ...insertedData]);
+        } else if (tab === 'delegaciones') {
+          setDelegaciones(prev => [...prev, ...insertedData]);
+        }
+
+        showSuccessMessage(`${insertedData.length} elemento(s) importado(s) correctamente`);
+      }
+    } catch (err: any) {
+      console.error('Error en importación masiva:', err);
+      setError('Error al importar datos: ' + err.message);
+    } finally {
+      setSaving(prev => ({ ...prev, [tab]: false }));
+    }
   };
 
   const fetchArticulos = async () => {
@@ -336,6 +460,36 @@ export function MaestroDeDatosPage() {
               <h1 className="text-3xl font-bold text-slate-800">Maestro de Artículos</h1>
               {saving.articulos && <div className="flex items-center text-indigo-600"><Save className="mr-2 h-5 w-5 animate-pulse" /><span>Guardando...</span></div>}
             </div>
+
+            {/* Botones de acciones masivas */}
+            {selectedItems.articulos.length > 0 && (
+              <div className="mb-4 flex gap-2">
+                <button
+                  onClick={() => handleDeleteSelected('articulos')}
+                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50"
+                  disabled={saving.articulos}
+                >
+                  🗑️ Eliminar {selectedItems.articulos.length}
+                </button>
+                <button
+                  onClick={() => handleExportSelected('articulos', articulos)}
+                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+                >
+                  📊 Exportar {selectedItems.articulos.length}
+                </button>
+              </div>
+            )}
+
+            {/* Botón de carga masiva */}
+            <div className="mb-4 flex gap-2">
+              <button
+                onClick={() => setBulkImportOpen(prev => ({ ...prev, articulos: true }))}
+                className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 flex items-center"
+              >
+                📤 Carga Masiva
+              </button>
+            </div>
+
             <AddRowForm 
               fields={[
                 { 
@@ -379,6 +533,14 @@ export function MaestroDeDatosPage() {
                     <table className="w-full text-sm text-left text-slate-700">
                       <thead className="text-xs text-slate-800 uppercase bg-slate-100">
                         <tr>
+                          <th scope="col" className="px-3 py-3">
+                            <input
+                              type="checkbox"
+                              checked={selectedItems.articulos.length === filteredArticulos.length && filteredArticulos.length > 0}
+                              onChange={() => handleSelectAll('articulos', filteredArticulos)}
+                              className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                            />
+                          </th>
                           <th scope="col" className="px-6 py-3">Subfamilia</th>
                           <th scope="col" className="px-6 py-3">Código</th>
                           <th scope="col" className="px-6 py-3">Descripción</th>
@@ -388,18 +550,28 @@ export function MaestroDeDatosPage() {
                       </thead>
                       <tbody>
                         {filteredArticulos.map(a => (
-                          <EditableRow
-                            key={a.id}
-                            item={a}
-                            fields={[
-                              { key: 'subfamilia', label: 'Subfamilia' },
-                              { key: 'codigo', label: 'Código' },
-                              { key: 'descripcion', label: 'Descripción' },
-                              { key: 'iva', label: 'IVA', type: 'number', isPercentage: true }
-                            ]}
-                            onUpdate={handleUpdateArticulo}
-                            onDelete={handleDeleteArticulo}
-                          />
+                          <tr key={a.id} className="bg-white border-b border-slate-200 hover:bg-slate-50">
+                            <td className="px-3 py-4">
+                              <input
+                                type="checkbox"
+                                checked={selectedItems.articulos.includes(a.id)}
+                                onChange={() => handleSelectItem('articulos', a.id)}
+                                className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                              />
+                            </td>
+                            <EditableRow
+                              key={a.id}
+                              item={a}
+                              fields={[
+                                { key: 'subfamilia', label: 'Subfamilia' },
+                                { key: 'codigo', label: 'Código' },
+                                { key: 'descripcion', label: 'Descripción' },
+                                { key: 'iva', label: 'IVA', type: 'number', isPercentage: true }
+                              ]}
+                              onUpdate={handleUpdateArticulo}
+                              onDelete={handleDeleteArticulo}
+                            />
+                          </tr>
                         ))}
                       </tbody>
                     </table>
@@ -424,6 +596,36 @@ export function MaestroDeDatosPage() {
               <h1 className="text-3xl font-bold text-slate-800">Maestro de Proveedores</h1>
               {saving.proveedores && <div className="flex items-center text-indigo-600"><Save className="mr-2 h-5 w-5 animate-pulse" /><span>Guardando...</span></div>}
             </div>
+
+            {/* Botones de acciones masivas */}
+            {selectedItems.proveedores.length > 0 && (
+              <div className="mb-4 flex gap-2">
+                <button
+                  onClick={() => handleDeleteSelected('proveedores')}
+                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50"
+                  disabled={saving.proveedores}
+                >
+                  🗑️ Eliminar {selectedItems.proveedores.length}
+                </button>
+                <button
+                  onClick={() => handleExportSelected('proveedores', proveedores)}
+                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+                >
+                  📊 Exportar {selectedItems.proveedores.length}
+                </button>
+              </div>
+            )}
+
+            {/* Botón de carga masiva */}
+            <div className="mb-4 flex gap-2">
+              <button
+                onClick={() => setBulkImportOpen(prev => ({ ...prev, proveedores: true }))}
+                className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 flex items-center"
+              >
+                📤 Carga Masiva
+              </button>
+            </div>
+
             <AddRowForm 
               fields={[
                 { key: 'codigo', label: 'Código', required: true },
@@ -453,6 +655,14 @@ export function MaestroDeDatosPage() {
                     <table className="w-full text-sm text-left text-slate-700">
                       <thead className="text-xs text-slate-800 uppercase bg-slate-100">
                         <tr>
+                          <th scope="col" className="px-3 py-3">
+                            <input
+                              type="checkbox"
+                              checked={selectedItems.proveedores.length === filteredProveedores.length && filteredProveedores.length > 0}
+                              onChange={() => handleSelectAll('proveedores', filteredProveedores)}
+                              className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                            />
+                          </th>
                           <th scope="col" className="px-6 py-3">Código</th>
                           <th scope="col" className="px-6 py-3">Nombre</th>
                           <th scope="col" className="px-6 py-3">CIF</th>
@@ -461,17 +671,27 @@ export function MaestroDeDatosPage() {
                       </thead>
                       <tbody>
                         {filteredProveedores.map(p => (
-                          <EditableRow
-                            key={p.id}
-                            item={p}
-                            fields={[
-                              { key: 'codigo', label: 'Código' },
-                              { key: 'nombre', label: 'Nombre' },
-                              { key: 'cif', label: 'CIF' }
-                            ]}
-                            onUpdate={handleUpdateProveedor}
-                            onDelete={handleDeleteProveedor}
-                          />
+                          <tr key={p.id} className="bg-white border-b border-slate-200 hover:bg-slate-50">
+                            <td className="px-3 py-4">
+                              <input
+                                type="checkbox"
+                                checked={selectedItems.proveedores.includes(p.id)}
+                                onChange={() => handleSelectItem('proveedores', p.id)}
+                                className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                              />
+                            </td>
+                            <EditableRow
+                              key={p.id}
+                              item={p}
+                              fields={[
+                                { key: 'codigo', label: 'Código' },
+                                { key: 'nombre', label: 'Nombre' },
+                                { key: 'cif', label: 'CIF' }
+                              ]}
+                              onUpdate={handleUpdateProveedor}
+                              onDelete={handleDeleteProveedor}
+                            />
+                          </tr>
                         ))}
                       </tbody>
                     </table>
@@ -496,6 +716,36 @@ export function MaestroDeDatosPage() {
               <h1 className="text-3xl font-bold text-slate-800">Maestro de Delegaciones</h1>
               {saving.delegaciones && <div className="flex items-center text-indigo-600"><Save className="mr-2 h-5 w-5 animate-pulse" /><span>Guardando...</span></div>}
             </div>
+
+            {/* Botones de acciones masivas */}
+            {selectedItems.delegaciones.length > 0 && (
+              <div className="mb-4 flex gap-2">
+                <button
+                  onClick={() => handleDeleteSelected('delegaciones')}
+                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50"
+                  disabled={saving.delegaciones}
+                >
+                  🗑️ Eliminar {selectedItems.delegaciones.length}
+                </button>
+                <button
+                  onClick={() => handleExportSelected('delegaciones', delegaciones)}
+                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+                >
+                  📊 Exportar {selectedItems.delegaciones.length}
+                </button>
+              </div>
+            )}
+
+            {/* Botón de carga masiva */}
+            <div className="mb-4 flex gap-2">
+              <button
+                onClick={() => setBulkImportOpen(prev => ({ ...prev, delegaciones: true }))}
+                className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 flex items-center"
+              >
+                📤 Carga Masiva
+              </button>
+            </div>
+
             <AddRowForm 
               fields={[
                 { key: 'delegacion', label: 'Delegación', required: true },
@@ -525,6 +775,14 @@ export function MaestroDeDatosPage() {
                     <table className="w-full text-sm text-left text-slate-700">
                       <thead className="text-xs text-slate-800 uppercase bg-slate-100">
                         <tr>
+                          <th scope="col" className="px-3 py-3">
+                            <input
+                              type="checkbox"
+                              checked={selectedItems.delegaciones.length === filteredDelegaciones.length && filteredDelegaciones.length > 0}
+                              onChange={() => handleSelectAll('delegaciones', filteredDelegaciones)}
+                              className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                            />
+                          </th>
                           <th scope="col" className="px-6 py-3">Delegación</th>
                           <th scope="col" className="px-6 py-3">Nombre Comercial</th>
                           <th scope="col" className="px-6 py-3">Razón Social</th>
@@ -533,17 +791,27 @@ export function MaestroDeDatosPage() {
                       </thead>
                       <tbody>
                         {filteredDelegaciones.map(d => (
-                          <EditableRow
-                            key={d.id}
-                            item={d}
-                            fields={[
-                              { key: 'delegacion', label: 'Delegación' },
-                              { key: 'nombre_comercial', label: 'Nombre Comercial' },
-                              { key: 'razon_social', label: 'Razón Social' }
-                            ]}
-                            onUpdate={handleUpdateDelegacion}
-                            onDelete={handleDeleteDelegacion}
-                          />
+                          <tr key={d.id} className="bg-white border-b border-slate-200 hover:bg-slate-50">
+                            <td className="px-3 py-4">
+                              <input
+                                type="checkbox"
+                                checked={selectedItems.delegaciones.includes(d.id)}
+                                onChange={() => handleSelectItem('delegaciones', d.id)}
+                                className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                              />
+                            </td>
+                            <EditableRow
+                              key={d.id}
+                              item={d}
+                              fields={[
+                                { key: 'delegacion', label: 'Delegación' },
+                                { key: 'nombre_comercial', label: 'Nombre Comercial' },
+                                { key: 'razon_social', label: 'Razón Social' }
+                              ]}
+                              onUpdate={handleUpdateDelegacion}
+                              onDelete={handleDeleteDelegacion}
+                            />
+                          </tr>
                         ))}
                       </tbody>
                     </table>
@@ -589,6 +857,44 @@ export function MaestroDeDatosPage() {
         </nav>
       </div>
       {renderContent()}
+
+      {/* Componentes de carga masiva */}
+      <BulkImport
+        tableName="Artículos"
+        fields={[
+          { key: 'subfamilia', label: 'Subfamilia' },
+          { key: 'codigo', label: 'Código', required: true },
+          { key: 'descripcion', label: 'Descripción', required: true },
+          { key: 'iva', label: 'IVA', type: 'number', required: true }
+        ]}
+        onImport={(data) => handleBulkImport('articulos', data)}
+        isOpen={bulkImportOpen.articulos}
+        onClose={() => setBulkImportOpen(prev => ({ ...prev, articulos: false }))}
+      />
+
+      <BulkImport
+        tableName="Proveedores"
+        fields={[
+          { key: 'codigo', label: 'Código', required: true },
+          { key: 'nombre', label: 'Nombre', required: true },
+          { key: 'cif', label: 'CIF', required: true }
+        ]}
+        onImport={(data) => handleBulkImport('proveedores', data)}
+        isOpen={bulkImportOpen.proveedores}
+        onClose={() => setBulkImportOpen(prev => ({ ...prev, proveedores: false }))}
+      />
+
+      <BulkImport
+        tableName="Delegaciones"
+        fields={[
+          { key: 'delegacion', label: 'Delegación', required: true },
+          { key: 'nombre_comercial', label: 'Nombre Comercial', required: true },
+          { key: 'razon_social', label: 'Razón Social', required: true }
+        ]}
+        onImport={(data) => handleBulkImport('delegaciones', data)}
+        isOpen={bulkImportOpen.delegaciones}
+        onClose={() => setBulkImportOpen(prev => ({ ...prev, delegaciones: false }))}
+      />
     </div>
   );
 }
