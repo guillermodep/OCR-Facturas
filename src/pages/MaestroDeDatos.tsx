@@ -475,7 +475,7 @@ export function MaestroDeDatosPage() {
               <button
                 onClick={() => handleDeleteSelected('articulos')}
                 disabled={selectedItems.articulos.length === 0 || saving.articulos}
-                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-all duration-150 ease-in-out hover:shadow-lg active:scale-95"
               >
                 <Trash2 size={16} />
                 Eliminar ({selectedItems.articulos.length})
@@ -483,19 +483,19 @@ export function MaestroDeDatosPage() {
               <button
                 onClick={() => handleExportSelected('articulos', articulos)}
                 disabled={selectedItems.articulos.length === 0}
-                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-all duration-150 ease-in-out hover:shadow-lg active:scale-95"
               >
                 <Download size={16} />
                 Exportar ({selectedItems.articulos.length})
               </button>
               <button
                 onClick={() => setBulkImportOpen(prev => ({ ...prev, articulos: true }))}
-                className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 flex items-center gap-2"
+                className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 flex items-center gap-2 transition-all duration-150 ease-in-out hover:shadow-lg active:scale-95"
               >
                 <Upload size={16} />
                 Carga Masiva
               </button>
-              <button onClick={() => setShowAddForm(prev => ({ ...prev, articulos: !prev.articulos }))} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2">
+              <button onClick={() => setShowAddForm(prev => ({ ...prev, articulos: !prev.articulos }))} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2 transition-all duration-150 ease-in-out hover:shadow-lg active:scale-95">
                 <Plus size={16} />
                 {showAddForm.articulos ? 'Cancelar' : 'Añadir Artículo'}
               </button>
@@ -615,7 +615,7 @@ export function MaestroDeDatosPage() {
               <button
                 onClick={() => handleDeleteSelected('proveedores')}
                 disabled={selectedItems.proveedores.length === 0 || saving.proveedores}
-                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-all duration-150 ease-in-out hover:shadow-lg active:scale-95"
               >
                 <Trash2 size={16} />
                 Eliminar ({selectedItems.proveedores.length})
@@ -623,19 +623,19 @@ export function MaestroDeDatosPage() {
               <button
                 onClick={() => handleExportSelected('proveedores', proveedores)}
                 disabled={selectedItems.proveedores.length === 0}
-                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-all duration-150 ease-in-out hover:shadow-lg active:scale-95"
               >
                 <Download size={16} />
                 Exportar ({selectedItems.proveedores.length})
               </button>
               <button
                 onClick={() => setBulkImportOpen(prev => ({ ...prev, proveedores: true }))}
-                className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 flex items-center gap-2"
+                className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 flex items-center gap-2 transition-all duration-150 ease-in-out hover:shadow-lg active:scale-95"
               >
                 <Upload size={16} />
                 Carga Masiva
               </button>
-              <button onClick={() => setShowAddForm(prev => ({ ...prev, proveedores: !prev.proveedores }))} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2">
+              <button onClick={() => setShowAddForm(prev => ({ ...prev, proveedores: !prev.proveedores }))} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2 transition-all duration-150 ease-in-out hover:shadow-lg active:scale-95">
                 <Plus size={16} />
                 {showAddForm.proveedores ? 'Cancelar' : 'Añadir Proveedor'}
               </button>
@@ -739,7 +739,7 @@ export function MaestroDeDatosPage() {
               <button
                 onClick={() => handleDeleteSelected('delegaciones')}
                 disabled={selectedItems.delegaciones.length === 0 || saving.delegaciones}
-                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-all duration-150 ease-in-out hover:shadow-lg active:scale-95"
               >
                 <Trash2 size={16} />
                 Eliminar ({selectedItems.delegaciones.length})
@@ -747,19 +747,19 @@ export function MaestroDeDatosPage() {
               <button
                 onClick={() => handleExportSelected('delegaciones', delegaciones)}
                 disabled={selectedItems.delegaciones.length === 0}
-                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-all duration-150 ease-in-out hover:shadow-lg active:scale-95"
               >
                 <Download size={16} />
                 Exportar ({selectedItems.delegaciones.length})
               </button>
               <button
                 onClick={() => setBulkImportOpen(prev => ({ ...prev, delegaciones: true }))}
-                className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 flex items-center gap-2"
+                className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 flex items-center gap-2 transition-all duration-150 ease-in-out hover:shadow-lg active:scale-95"
               >
                 <Upload size={16} />
                 Carga Masiva
               </button>
-              <button onClick={() => setShowAddForm(prev => ({ ...prev, delegaciones: !prev.delegaciones }))} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2">
+              <button onClick={() => setShowAddForm(prev => ({ ...prev, delegaciones: !prev.delegaciones }))} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2 transition-all duration-150 ease-in-out hover:shadow-lg active:scale-95">
                 <Plus size={16} />
                 {showAddForm.delegaciones ? 'Cancelar' : 'Añadir Delegación'}
               </button>
